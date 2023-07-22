@@ -7,6 +7,23 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    Chat: typeof import('./src/components/layout/Chat.vue')['default']
+    ChatList: typeof import('./src/components/layout/ChatList.vue')['default']
+    ChatTop: typeof import('./src/components/ChatTop.vue')['default']
+    ElAvatar: typeof import('element-plus/es')['ElAvatar']
+    ElCol: typeof import('element-plus/es')['ElCol']
+    ElIcon: typeof import('element-plus/es')['ElIcon']
+    ElInput: typeof import('element-plus/es')['ElInput']
+    ElInputclearable: typeof import('element-plus/es')['ElInputclearable']
+    ElRow: typeof import('element-plus/es')['ElRow']
+    IEpAddLocation: typeof import('~icons/ep/add-location')['default']
+    IEpChatDotRound: typeof import('~icons/ep/chat-dot-round')['default']
+    IEpCirclePlus: typeof import('~icons/ep/circle-plus')['default']
+    IEpClose: typeof import('~icons/ep/close')['default']
+    IEpMinus: typeof import('~icons/ep/minus')['default']
+    IEpPlus: typeof import('~icons/ep/plus')['default']
+    IEpSemiSelect: typeof import('~icons/ep/semi-select')['default']
+    Menu: typeof import('./src/components/layout/Menu.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }
