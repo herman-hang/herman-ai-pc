@@ -2,7 +2,7 @@
     <div class="flex-1 bg-white h-14">
         <div class="h-6 flex justify-end">
             <!-- 最小化 -->
-            <el-icon size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer">
+            <el-icon size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer" @click="minWindow">
                 <svg t="1690037091521" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                     p-id="9228" width="200" height="200">
                     <path d="M923 571H130.7c-27.6 0-50-22.4-50-50s22.4-50 50-50H923c27.6 0 50 22.4 50 50s-22.4 50-50 50z"
@@ -10,7 +10,8 @@
                 </svg>
             </el-icon>
             <!-- 最大化 -->
-            <el-icon v-if="isMax" size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer">
+            <el-icon v-if="isMax" size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer"
+                @click="maxWindow">
                 <svg t="1690037039150" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                     p-id="8138" width="200" height="200">
                     <path
@@ -18,7 +19,8 @@
                         fill="#2c2c2c" p-id="8139"></path>
                 </svg>
             </el-icon>
-            <el-icon v-else size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer">
+            <el-icon v-else size="16" class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer"
+                @click="maxWindow">
                 <svg t="1690036894705" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                     p-id="7745" width="200" height="200">
                     <path
@@ -27,7 +29,7 @@
                 </svg>
             </el-icon>
             <!-- 关闭 -->
-            <el-icon size="16" class="mx-2 pt-1 hover:bg-red-400 focus:outline-none cursor-pointer">
+            <el-icon size="16" class="mx-2 pt-1 hover:bg-red-400 focus:outline-none cursor-pointer" @click="closeWindow">
                 <svg t="1690037120604" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                     p-id="10236" width="200" height="200">
                     <path
@@ -44,7 +46,25 @@
 
 <script lang="ts" setup>
 import { ref } from "vue"
-const isMax = ref(false)
+const { ipcRenderer } = require('electron')
+let isMax = ref<boolean>(false)
+
+// 最小化
+const minWindow = () => {
+    ipcRenderer.send('window-min')
+}
+
+// 最大化
+const maxWindow = () => {
+    ipcRenderer.send('window-max')
+    isMax.value = !isMax.value
+}
+
+// 关闭窗口
+const closeWindow = () => {
+    ipcRenderer.send('window-close')
+}
+
 </script>
 
 <style lang="scss" scoped></style>

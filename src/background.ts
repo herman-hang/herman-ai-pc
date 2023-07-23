@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain } from 'electron'
 
 // 创建一个窗口
 async function createWindow() {
@@ -34,6 +34,25 @@ app.whenReady().then(async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
             createWindow();
         }
+    })
+
+    // 收到渲染进程的窗口最小化操作的通知，并调用窗口最小化函数，执行该操作
+    ipcMain.on('window-min', function () {
+        win.minimize();
+    })
+
+    // 窗口 最大化、恢复
+    ipcMain.on('window-max', function () {
+        if (win.isMaximized()) { // 为true表示窗口已最大化
+            win.restore();// 将窗口恢复为之前的状态.
+        } else {
+            win.maximize();
+        }
+    })
+
+    // 关闭窗口
+    ipcMain.on('window-close', function () {
+        win.close();
     })
 
     // 根据命令行参数加载URL或本地文件

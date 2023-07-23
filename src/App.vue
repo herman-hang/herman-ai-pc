@@ -18,6 +18,7 @@ import { RouterView } from 'vue-router'
     <!-- 聊天主体 -->
     <div class="flex-grow bg-gray-100">
       <ChatTop></ChatTop> 
+      <ChatContent></ChatContent>
     </div>
   </div>
 </template>
