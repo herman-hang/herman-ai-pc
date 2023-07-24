@@ -47,8 +47,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from "vue"
-let isMax = ref<boolean>(false)
+import { ref } from "vue"
+const isMax = ref<boolean>(false)
 let ipcRenderer: any = null
 const isElectron = navigator.userAgent.toLowerCase().indexOf('electron/') > -1;
 

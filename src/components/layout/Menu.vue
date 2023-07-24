@@ -1,7 +1,7 @@
 <template>
     <div class="flex justify-center">
         <div class="flex flex-col justify-center items-center">
-            <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none">
+            <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none" @click="isUserInfoDialog = true">
                 <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
             </div>
 
@@ -61,17 +61,55 @@
             </el-tooltip>
 
         </div>
+
+        <!-- 个人信息对话框 -->
+        <el-dialog v-model="isUserInfoDialog" title="个人信息">
+            <div class="flex justify-center items-center m-2 focus:outline-none cursor-pointer select-none">
+                <el-avatar :size="70" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+            </div>
+            <el-form label-width="70px">
+                <el-form-item label="ID">
+                    <el-input disabled />
+                </el-form-item>
+                <el-form-item label="手机号码">
+                    <el-input disabled />
+                </el-form-item>
+                <el-form-item label="昵称">
+                    <el-input autocomplete="off" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button color="#626aef" plain @click="userInfoCancel">取消</el-button>
+                    <el-button @click="userInfoConfirm" color="#626aef">
+                        确定
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+
     </div>
 </template>
 
 <script lang="ts" setup>
 import { ref } from "vue"
 
-let isShow = ref<number>(1)
-
+const isShow = ref<number>(1)
+const isUserInfoDialog = ref(false)
 // 选中AI产品
 const changeShow = (index: number) => {
     isShow.value = index
+}
+
+// 个人信息对话框取消操作
+const userInfoCancel = () => {
+    isUserInfoDialog.value = false
+}
+
+// 个人信息对话框确定操作
+const userInfoConfirm = () => {
+
 }
 
 </script>
