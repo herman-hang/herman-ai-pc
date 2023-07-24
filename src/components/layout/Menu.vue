@@ -1,7 +1,7 @@
 <template>
     <div class="flex justify-center">
         <div class="flex flex-col justify-center items-center">
-            <div class="mt-5 w-10 h-10">
+            <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none">
                 <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
             </div>
 

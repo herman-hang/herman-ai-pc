@@ -55,6 +55,12 @@ app.whenReady().then(async () => {
         win.close();
     })
 
+    // 拖动窗口
+    ipcMain.on('drag-window', (_, { offsetX, offsetY }) => {
+        const currentPosition = win.getPosition();
+        win.setPosition(currentPosition[0] + offsetX, currentPosition[1] + offsetY);
+    });
+
     // 根据命令行参数加载URL或本地文件
     if (argv) {
         win.loadURL(argv.domain)

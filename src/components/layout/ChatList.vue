@@ -1,6 +1,5 @@
 <template>
     <div class="flex-1">
-
         <!-- 搜索框 -->
         <div class="flex justify-center items-center h-14 bg-white">
             <div class="flex justify-center items-center">
@@ -14,7 +13,7 @@
         </div>
 
         <!-- 聊天列表 -->
-        <div class="custom-scrollbar select-none">
+        <div class="custom-scrollbar select-none" :style="{ height: chatListHeight + 'px'}">
             <div v-for="message in messages" :key="message.id">
                 <div class="flex items-center py-1 px-2 hover:bg-gray-200 focus:outline-none">
                     <div class="w-10 h-10">
@@ -32,73 +31,83 @@
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from "vue"
+import { ref, reactive, onMounted, onUnmounted } from "vue"
 import { Search } from '@element-plus/icons-vue'
 
-const keywords = ref("")
+const keywords = ref<string>("")
+let chatListHeight = ref<number>(0);
 
 let messages = reactive([
-    { id: 1, name: '小航', isEdit: false },
-    { id: 2, name: 'Hi!哈哈', isEdit: false },
-    { id: 3, name: '小河', isEdit: false },
-    { id: 4, name: '得人', isEdit: false },
-    { id: 5, name: '哈哈', isEdit: false },
-    { id: 6, name: '经济', isEdit: false },
-    { id: 7, name: '问问', isEdit: false },
-    { id: 8, name: '的按所多', isEdit: false },
-    { id: 9, name: 'Hello!', isEdit: false },
-    { id: 10, name: 'Hi!', isEdit: false },
-    { id: 11, name: '的哥哥哥', isEdit: false },
-    { id: 12, name: '得我', isEdit: false },
-    { id: 13, name: 'Hello!', isEdit: false },
-    { id: 14, name: 'Hi!', isEdit: false },
-    { id: 15, name: '分分?', isEdit: false },
-    { id: 16, name: '分为二维', isEdit: false },
-    { id: 17, name: 'Hello!', isEdit: false },
-    { id: 18, name: 'Hi!', isEdit: false },
-    { id: 19, name: 'How are you?', isEdit: false },
-    { id: 20, name: '分分!', isEdit: false },
-    { id: 22, name: 'Hello!', isEdit: false },
-    { id: 23, name: 'Hi!', isEdit: false },
-    { id: 24, name: '分分为', isEdit: false },
-    { id: 25, name: '分我分', isEdit: false },
+    { id: 1, name: "消息1", menuVisible: false },
+    { id: 2, name: "消息2", menuVisible: false },
+    { id: 3, name: "消息3", menuVisible: false },
+    { id: 4, name: "消息4", menuVisible: false },
+    { id: 5, name: "消息5", menuVisible: false },
+    { id: 6, name: "消息6", menuVisible: false },
+    { id: 7, name: "消息7", menuVisible: false },
+    { id: 8, name: "消息8", menuVisible: false },
+    { id: 9, name: "消息9", menuVisible: false },
+    { id: 10, name: "消息10", menuVisible: false },
+    { id: 11, name: "消息11", menuVisible: false },
+    { id: 12, name: "消息1", menuVisible: false },
+    { id: 13, name: "消息2", menuVisible: false },
+    { id: 14, name: "消息3", menuVisible: false },
+    { id: 15, name: "消息4", menuVisible: false },
+    { id: 16, name: "消息5", menuVisible: false },
+    { id: 17, name: "消息6", menuVisible: false },
+    { id: 18, name: "消息7", menuVisible: false },
+    { id: 19, name: "消息8", menuVisible: false },
+    { id: 20, name: "消息9", menuVisible: false },
+    { id: 21, name: "消息10", menuVisible: false },
+    { id: 22, name: "消息11", menuVisible: false },
 ])
 
+// 计算聊天列表高度
+const updateWindowSize = () => {
+    chatListHeight.value = window.innerHeight - 56;
+};
 
+onMounted(() => {
+    updateWindowSize()
+    window.addEventListener('resize', updateWindowSize);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('resize', updateWindowSize);
+});
 </script>
 
 <style lang="scss" scoped>
 .custom-scrollbar {
-    overflow-y: hidden;
     /* 显示垂直滚动条 */
-    scrollbar-width: thin;
+    overflow-y: hidden;
     /* 设置滚动条的宽度 */
-    scrollbar-color: #C4C0BF lightgray;
+    scrollbar-width: thin;
     /* 设置滚动条的颜色 */
-    height: 100vh;
-    /* 设置容器铺满整个浏览器窗口 */
+    scrollbar-color: #C4C0BF lightgray;
 }
 
 .custom-scrollbar:hover {
-    overflow-y: scroll;
     /* 鼠标悬停时强制显示滚动条 */
+    overflow-y: scroll;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
     /* 设置滚动条的宽度 */
+    width: 6px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: #C4C0BF;
     /* 设置滚动条的颜色 */
-    border-radius: 4px;
+    background-color: #C4C0BF;
     /* 添加圆角 */
+    border-radius: 4px;
 }
 </style>
