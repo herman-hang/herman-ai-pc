@@ -27,5 +27,8 @@ declare module 'vue' {
     Menu: typeof import('./src/components/layout/Menu.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Verify: typeof import('./src/components/verifition/Verify.vue')['default']
+    VerifyPoints: typeof import('./src/components/verifition/Verify/VerifyPoints.vue')['default']
+    VerifySlide: typeof import('./src/components/verifition/Verify/VerifySlide.vue')['default']
   }
 }

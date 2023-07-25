@@ -9,11 +9,11 @@
     </div>
     <el-form :model="loginForm" :rules="loginFormRules" ref="loginFormRef" label-width="80px">
       <el-form-item label="手机号码" prop="phone">
-        <el-input v-model="loginForm.phone"></el-input>
+        <el-input v-model="loginForm.phone" placeholder="请输入手机号码"></el-input>
       </el-form-item>
       <el-form-item label="验证码" prop="code">
         <div class="flex">
-          <el-input v-model="loginForm.code"></el-input>
+          <el-input v-model="loginForm.code" placeholder="请输入验证码"></el-input>
           <el-button class="ml-2" @click="getCode" color="#626aef" plain :disabled="countDown > 0">
             {{ countDown > 0 ? `${countDown} 秒` : buttonText }}
           </el-button>
@@ -23,13 +23,17 @@
         <el-button color="#626aef" :loading="isLogining" @click="login(loginFormRef)">登录</el-button>
       </div>
     </el-form>
+
+    <!-- 验证码 -->
+    <Verify mode="pop" :captchaType="captchaType" :imgSize="{ width: '400px', height: '200px' }" ref="verify"></Verify>
   </el-dialog>
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { FormInstance } from 'element-plus'
-
-const dialogVisible = ref(false);
+const verify = ref(null)
+const captchaType = ref('blockPuzzle')
+const dialogVisible = ref(true);
 const loginForm = ref({
   phone: '',
   code: ''
@@ -51,6 +55,7 @@ const loginFormRef = ref<FormInstance>()
 
 // 发送获取验证码的请求
 const getCode = () => {
+  verify.value!.show()
   if (countDown.value > 0) return;
   // 在请求成功后，启动倒计时
   countDown.value = 60;
@@ -87,5 +92,9 @@ const login = (formEl: FormInstance | undefined) => {
 // 用户登录对话框关闭前事件
 const beforeCloseDialog = () => { }
 
+const handleSuccess = (res: any) => {
+  console.log(res);
+  console.log('sucess');
+}
 </script>
 <style lang="scss" scoped></style>
