@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col bg-white h-14" style="-webkit-app-region: drag">
+    <div class="flex flex-col bg-white h-14" style="-webkit-app-region: drag" @mousedown="handleMouseDown">
         <div class="h-6 flex justify-end">
             <!-- 最小化 -->
             <el-icon style="-webkit-app-region: no-drag" size="16"
@@ -80,6 +80,8 @@ const closeWindow = () => {
     }
 }
 
+const handleMouseDown = (event:any) => {
+}
 </script>
 
 <style lang="scss" scoped></style>

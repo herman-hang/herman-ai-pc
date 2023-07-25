@@ -63,7 +63,7 @@
         </div>
 
         <!-- 个人信息对话框 -->
-        <el-dialog v-model="isUserInfoDialog" title="个人信息">
+        <el-dialog v-model="isUserInfoDialog" title="个人信息" width="45%">
             <div class="flex justify-center items-center m-2 focus:outline-none cursor-pointer select-none">
                 <el-avatar :size="70" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
             </div>

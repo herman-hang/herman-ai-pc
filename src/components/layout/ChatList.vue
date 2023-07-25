@@ -13,7 +13,7 @@
         </div>
 
         <!-- 聊天列表 -->
-        <div class="custom-scrollbar select-none" :style="{ height: chatListHeight + 'px' }">
+        <el-scrollbar class="select-none" :style="{ height: chatListHeight + 'px' }">
             <div v-for="message in messages" :key="message.id" @contextmenu="showContextMenu($event, message)">
                 <div class="flex items-center py-1 px-2 hover:bg-gray-200 focus:outline-none">
                     <div class="w-10 h-10">
@@ -32,8 +32,7 @@
                     </div>
                 </div>
             </div>
-        </div>
-
+        </el-scrollbar>
 
 
         <!-- 右键菜单 -->
@@ -55,7 +54,7 @@
 
 
         <!-- 重命名对话框 -->
-        <el-dialog v-model="isRename" title="重命名">
+        <el-dialog v-model="isRename" title="重命名" width="45%">
             <el-form>
                 <el-form-item>
                     <el-input v-model="selectedMessage.name" />
@@ -72,7 +71,7 @@
         </el-dialog>
 
         <!-- 删除对话框 -->
-        <el-dialog v-model="isDelete" title="删除提示">
+        <el-dialog v-model="isDelete" title="删除提示" width="45%">
             <div class="flex items-center">
                 <el-icon :size="16" color="#E6A23C"><i-ep-InfoFilled /></el-icon>
                 <span>您确定要删除 {{ selectedMessage.name }} 吗?</span>
@@ -211,34 +210,4 @@ const deleteConfirm = () => {
 }
 </script>
 
-<style lang="scss" scoped>
-.custom-scrollbar {
-    /* 显示垂直滚动条 */
-    overflow-y: hidden;
-    /* 设置滚动条的宽度 */
-    scrollbar-width: thin;
-    /* 设置滚动条的颜色 */
-    scrollbar-color: #C4C0BF lightgray;
-}
-
-.custom-scrollbar:hover {
-    /* 鼠标悬停时强制显示滚动条 */
-    overflow-y: scroll;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    /* 设置滚动条的宽度 */
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    /* 设置滚动条的颜色 */
-    background-color: #C4C0BF;
-    /* 添加圆角 */
-    border-radius: 4px;
-}
-
-.confirm-btn-color {
-    background-color: #626aef;
-}
-</style>
+<style lang="scss" scoped></style>
