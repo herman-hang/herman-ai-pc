@@ -5,7 +5,7 @@ const instace = axios.create({
     baseURL: import.meta.env.VITE_BASE_URL,
     timeout: 5000, // 超时时间
     headers: {
-        'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8',
+        'Content-Type': 'application/json',
     }, // 设置请求头
     withCredentials: true, // 跨域请求时是否需要使用凭证
 });
@@ -32,10 +32,9 @@ instace.interceptors.request.use((config) => {
 // instance.interceptors.response.use(response=>{l}, err=>{});
 // 响应成功:执行回调函数1;响应失败，执行回调函数2
 instace.interceptors.response.use((response) => {
-    
     // 响应逻辑处理
 
-    return response; // 这里的response就是请求成功后的res , response.data即是请求成功后回调函数内的参数res.data
+    return response.data; // 这里的response就是请求成功后的res , response.data即是请求成功后回调函数内的参数res.data
 }, (err) => {
     
     return Promise.reject(err); // 将错误消息挂到promise的失败函数上
