@@ -151,7 +151,8 @@ export default {
                     let data = {
                         captchaType: captchaType.value,
                         "pointJson": secretKey.value ? aesEncrypt(JSON.stringify(checkPosArr), secretKey.value) : JSON.stringify(checkPosArr),
-                        "token": backToken.value
+                        "token": backToken.value,
+                        "captchaVerification": captchaVerification
                     }
                     CheckCaptcha(data).then(res => {
                         if (res.code === 200) {
@@ -165,7 +166,7 @@ export default {
                                     refresh();
                                 }, 1500)
                             }
-                            proxy.$parent.$emit('success', { captchaVerification })
+                            proxy.$parent.$emit('success', { data })
                         } else {
                             proxy.$parent.$emit('error', proxy)
                             barAreaColor.value = '#d9534f'

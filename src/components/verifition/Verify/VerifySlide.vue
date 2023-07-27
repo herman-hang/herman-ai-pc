@@ -267,7 +267,8 @@ export default {
                         setTimeout(() => {
                             tipWords.value = ""
                             proxy.$parent.closeBox();
-                            proxy.$parent.$emit('success', { captchaVerification })
+                            data.captchaVerification = captchaVerification
+                            proxy.$parent.$emit('success', { data })
                         }, 1000)
                     } else {
                         moveBlockBackgroundColor.value = '#d9534f'

@@ -4,3 +4,5 @@ import { get, post, put, deleted } from '../uitls/http'
 export const GetCaptcha = (data) => get('/captcha', data)
 // 检查验证码正确性
 export const CheckCaptcha = (data) => post('/captcha/check', data)
+// 发送验证码
+export const SendCode = (data) => post('/send/code', data)

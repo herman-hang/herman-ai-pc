@@ -26,7 +26,7 @@
     </el-form>
 
     <!-- 滑块验证码 -->
-    <Verify mode="pop" @success="checkCaptchaSuccess" :captchaType="captchaType"
+    <Verify mode="pop" @success="checkCaptchaSuccess" :captchaType="loginForm.captchaType"
       :imgSize="{ width: '400px', height: '200px' }" ref="verify"></Verify>
 
   </el-dialog>
@@ -34,17 +34,19 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import type { FormInstance } from 'element-plus'
+import { SendCode } from './api/home.js'
 // 滑块验证码引用
 const verify = ref(null)
-// 滑块验证码类型
-const captchaType = ref('blockPuzzle')
 // 登录对话框开关
 const loginDialogVisible = ref(true);
 // 登录表单
 const loginForm = reactive({
   phone: '',
   code: '',
-  captchaVerification: ''
+  captchaVerification: '',
+  captchaType: 'blockPuzzle',
+  pointJson: '',
+  token: ''
 });
 // 表单引用
 const loginFormRef = ref<FormInstance>()
@@ -71,7 +73,7 @@ const getCode = (formEl: FormInstance | undefined) => {
   if (!formEl) return
   formEl.validateField('phone', (errorMessage) => {
     if (errorMessage) {
-      captchaType.value = Math.floor(Math.random() * 10) % 2 === 0 ? "blockPuzzle" : "clickWord"
+      loginForm.captchaType = Math.floor(Math.random() * 10) % 2 === 0 ? "blockPuzzle" : "clickWord"
       verify.value!.show()
     }
   })
@@ -84,6 +86,8 @@ const login = (formEl: FormInstance | undefined) => {
     if (valid) {
       // 开启登录请求状态
       isLogining.value = true;
+
+
       setTimeout(() => {
         isLogining.value = false;
         loginDialogVisible.value = false;
@@ -99,19 +103,27 @@ const login = (formEl: FormInstance | undefined) => {
 // 用户登录对话框关闭前事件
 const beforeCloseDialog = () => { }
 
-// 滑块验证码校验成功回调
+// 行为验证码校验成功回调
 const checkCaptchaSuccess = (res: any) => {
-  console.log(res)
   if (countDown.value > 0) return;
-  loginForm.captchaVerification = res.captchaVerification
-  countDown.value = 60;
-  const timer = setInterval(() => {
-    if (countDown.value > 0) {
-      countDown.value -= 1;
+  loginForm.captchaVerification = res.data.captchaVerification
+  loginForm.pointJson = res.data.pointJson
+  loginForm.token = res.data.token
+  SendCode(loginForm).then(res => {
+    if (res.code !== 200) {
+      console.log(res.message)
     } else {
-      clearInterval(timer);
+      // countDown.value = 60;
+      // const timer = setInterval(() => {
+      //   if (countDown.value > 0) {
+      //     countDown.value -= 1;
+      //   } else {
+      //     clearInterval(timer);
+      //   }
+      // }, 1000);
     }
-  }, 1000);
+  })
+
 }
 </script>
 <style lang="scss" scoped></style>
