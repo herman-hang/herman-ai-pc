@@ -12,17 +12,15 @@ const instace = axios.create({
 
 // 配置请求拦截器,在请求之前的数据处理,比如在请求头添加token,所有的请求都会经过拦截器
 instace.interceptors.request.use((config) => {
-    // 例如:
-    // 在请求头统一添加token
-    // 或者请求之前显示lodding图标(这里只演示这个)
-    // 这里是vant组件库的loadding,安装和配置请查看此文档的vant组件库的配置https://blog.csdn.net/weixin_68658847/article/details/129331162
-
-    // 设置登录token到请求头
-    config.headers.Authorization = window.sessionStorage.getItem('Authorization');
+    const token = localStorage.getItem('Authorization')
+    if (token) {
+        // 设置登录token到请求头
+        config.headers.Authorization = token
+    }
 
     return config;
 }, (err) => {
-    
+
     return Promise.reject(err); //将错误消息挂到promise的失败函数上
 }
 );
@@ -32,17 +30,20 @@ instace.interceptors.request.use((config) => {
 // instance.interceptors.response.use(response=>{l}, err=>{});
 // 响应成功:执行回调函数1;响应失败，执行回调函数2
 instace.interceptors.response.use((response) => {
-    // 响应逻辑处理
+    // token续期
+    if (response.headers["x-new-token"] !== undefined && response.headers["x-new-token"] !== null && response.headers["x-new-token"] !== '') {
+        localStorage.setItem('Authorization', response.headers["x-new-token"])
+    }
 
-    return response.data; // 这里的response就是请求成功后的res , response.data即是请求成功后回调函数内的参数res.data
+    return response;
 }, (err) => {
-    
+
     return Promise.reject(err); // 将错误消息挂到promise的失败函数上
 }
 );
 
 // 封装请求的api
-const callapi = (method = "GET", url, data = {}) => {
+const callapi = (method = "GET", url: string, data = {}) => {
     return instace({
         method,
         url,
@@ -52,7 +53,7 @@ const callapi = (method = "GET", url, data = {}) => {
 };
 
 // 封装请求函数
-export const get = (url, data) => callapi("GET", url, data);
-export const post = (url, data) => callapi("POST", url, data);
-export const put = (url, data) => callapi("PUT", url, data);
-export const deleted = (url, data) => callapi("DELETE", url, data);
+export const get = (url: string, data = {}) => callapi("GET", url, data);
+export const post = (url: string, data = {}) => callapi("POST", url, data);
+export const put = (url: string, data = {}) => callapi("PUT", url, data);
+export const deleted = (url: string, data = {}) => callapi("DELETE", url, data);

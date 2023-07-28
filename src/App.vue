@@ -32,13 +32,15 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import type { FormInstance } from 'element-plus'
-import { SendCode } from './api/home.js'
+import { SendCode, Login } from '@/api/home'
+import { ElMessage } from 'element-plus'
+
 // 滑块验证码引用
-const verify = ref(null)
+const verify = ref()
 // 登录对话框开关
-const loginDialogVisible = ref(true);
+const loginDialogVisible = ref(false);
 // 登录表单
 const loginForm = reactive({
   phone: '',
@@ -68,13 +70,21 @@ const buttonText = ref('获取验证码');
 // 点击登录按钮加载状态
 const isLogining = ref(false);
 
+
+onMounted(() => {
+  const token = localStorage.getItem('Authorization')
+  if (token === null || token === '') {
+    loginDialogVisible.value = true
+  }
+})
+
 // 发送获取验证码的请求
 const getCode = (formEl: FormInstance | undefined) => {
   if (!formEl) return
   formEl.validateField('phone', (errorMessage) => {
     if (errorMessage) {
       loginForm.captchaType = Math.floor(Math.random() * 10) % 2 === 0 ? "blockPuzzle" : "clickWord"
-      verify.value!.show()
+      verify.value.show()
     }
   })
 };
@@ -86,14 +96,20 @@ const login = (formEl: FormInstance | undefined) => {
     if (valid) {
       // 开启登录请求状态
       isLogining.value = true;
-
-
-      setTimeout(() => {
+      Login(loginForm).then(res => {
         isLogining.value = false;
-        loginDialogVisible.value = false;
-        // 执行登录操作
-
-      }, 2000);
+        if (res.data.code !== 200) {
+          ElMessage({
+            type: 'error',
+            message: res.data.message,
+          })
+        } else {
+          loginDialogVisible.value = false;
+          // 缓存token
+          localStorage.setItem('Authorization', res.data.data)
+          loginDialogVisible.value = false
+        }
+      })
     } else {
       return false
     }
@@ -110,17 +126,20 @@ const checkCaptchaSuccess = (res: any) => {
   loginForm.pointJson = res.data.pointJson
   loginForm.token = res.data.token
   SendCode(loginForm).then(res => {
-    if (res.code !== 200) {
-      console.log(res.message)
+    if (res.data.code !== 200) {
+      ElMessage({
+        type: 'error',
+        message: res.data.message,
+      })
     } else {
-      // countDown.value = 60;
-      // const timer = setInterval(() => {
-      //   if (countDown.value > 0) {
-      //     countDown.value -= 1;
-      //   } else {
-      //     clearInterval(timer);
-      //   }
-      // }, 1000);
+      countDown.value = 60;
+      const timer = setInterval(() => {
+        if (countDown.value > 0) {
+          countDown.value -= 1;
+        } else {
+          clearInterval(timer);
+        }
+      }, 1000);
     }
   })
 

@@ -155,7 +155,7 @@ export default {
                         "captchaVerification": captchaVerification
                     }
                     CheckCaptcha(data).then(res => {
-                        if (res.code === 200) {
+                        if (res.data.code === 200) {
                             barAreaColor.value = '#4cae4c'
                             barAreaBorderColor.value = '#5cb85c'
                             text.value = '验证成功'
@@ -213,14 +213,14 @@ export default {
                 captchaType: captchaType.value
             }
             GetCaptcha(data).then(res => {
-                if (res.code === 200) {
-                    pointBackImgBase.value = res.data.originalImageBase64
-                    backToken.value = res.data.token
-                    secretKey.value = res.data.secretKey
-                    poinTextList.value = res.data.wordList
+                if (res.data.code === 200) {
+                    pointBackImgBase.value = res.data.data.originalImageBase64
+                    backToken.value = res.data.data.token
+                    secretKey.value = res.data.data.secretKey
+                    poinTextList.value = res.data.data.wordList
                     text.value = '请依次点击【' + poinTextList.value.join(",") + '】'
                 } else {
-                    text.value = res.message;
+                    text.value = res.data.message;
                 }
             })
         }

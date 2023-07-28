@@ -16,6 +16,7 @@
         </div>
     </div>
 </template>
+
 <script type="text/babel">
 /**
  * Verify 验证码组件

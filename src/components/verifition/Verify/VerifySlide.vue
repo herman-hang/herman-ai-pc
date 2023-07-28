@@ -200,7 +200,7 @@ export default {
             } else {           //兼容移动端
                 var x = e.touches[0].pageX;
             }
-            
+
             startLeft.value = Math.floor(x - barArea.value.getBoundingClientRect().left);
             startMoveTime.value = +new Date();    //开始滑动的时间
             if (isEnd.value == false) {
@@ -248,7 +248,7 @@ export default {
                     "token": backToken.value
                 }
                 CheckCaptcha(data).then(res => {
-                    if (res.code === 200) {
+                    if (res.data.code === 200) {
                         moveBlockBackgroundColor.value = '#5cb85c'
                         leftBarBorderColor.value = '#5cb85c'
                         iconColor.value = '#fff'
@@ -320,13 +320,13 @@ export default {
                 captchaType: captchaType.value
             }
             GetCaptcha(data).then(res => {
-                if (res.code === 200) {
-                    backImgBase.value = res.data.originalImageBase64
-                    blockBackImgBase.value = res.data.jigsawImageBase64
-                    backToken.value = res.data.token
-                    secretKey.value = res.data.secretKey
+                if (res.data.code === 200) {
+                    backImgBase.value = res.data.data.originalImageBase64
+                    blockBackImgBase.value = res.data.data.jigsawImageBase64
+                    backToken.value = res.data.data.token
+                    secretKey.value = res.data.data.secretKey
                 } else {
-                    tipWords.value = res.message;
+                    tipWords.value = res.data.message;
                 }
             })
         }

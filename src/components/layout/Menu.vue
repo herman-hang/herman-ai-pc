@@ -1,8 +1,9 @@
 <template>
     <div class="flex justify-center">
         <div class="flex flex-col justify-center items-center">
-            <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none" @click="isUserInfoDialog = true">
-                <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+            <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none" @click="openUserInfoDialog">
+                <el-avatar
+                    :src="userInfo.photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : userInfo.photo" />
             </div>
 
             <!-- GPT -->
@@ -65,17 +66,18 @@
         <!-- 个人信息对话框 -->
         <el-dialog v-model="isUserInfoDialog" title="个人信息" width="45%">
             <div class="flex justify-center items-center m-2 focus:outline-none cursor-pointer select-none">
-                <el-avatar :size="70" src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+                <el-avatar :size="70"
+                    :src="userInfo.photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : userInfo.photo" />
             </div>
             <el-form label-width="70px">
                 <el-form-item label="ID">
-                    <el-input disabled />
+                    <el-input disabled v-model="userInfo.id" />
                 </el-form-item>
                 <el-form-item label="手机号码">
-                    <el-input disabled />
+                    <el-input disabled v-model="userInfo.phone" />
                 </el-form-item>
                 <el-form-item label="昵称">
-                    <el-input autocomplete="off" />
+                    <el-input autocomplete="off" v-model="userInfo.nickname" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -88,15 +90,34 @@
             </template>
         </el-dialog>
 
-
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue"
-
+import { onMounted, reactive, ref } from "vue"
+import { UserInfo } from '@/api/home'
 const isShow = ref<number>(1)
 const isUserInfoDialog = ref(false)
+let userInfo = reactive({
+    'id': 0,
+    'phone': '',
+    'nickname': '',
+    'photo': ''
+})
+
+onMounted(() => {
+    getUserInfo()
+})
+
+// 获取用户信息
+const getUserInfo = () => {
+    UserInfo().then(res => {
+        if (res.data.code == 200) {
+            userInfo = res.data.data
+        }
+    })
+}
+
 // 选中AI产品
 const changeShow = (index: number) => {
     isShow.value = index
@@ -110,6 +131,12 @@ const userInfoCancel = () => {
 // 个人信息对话框确定操作
 const userInfoConfirm = () => {
 
+}
+
+// 打开个人信息对话框
+const openUserInfoDialog = () => {
+    getUserInfo()
+    isUserInfoDialog.value = true
 }
 
 </script>
