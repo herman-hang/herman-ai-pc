@@ -1,14 +1,13 @@
 import axios from "axios";
-
+import { ElMessage } from "element-plus";
+import { useAuthStore } from '@/stores/auth';
 // 创建一个新的请求实例instance,instance.的用法和axios.的用法一致，可以使用instance({})、instance.get（）、instance.post()
 const instace = axios.create({
     baseURL: import.meta.env.VITE_BASE_URL,
     timeout: 5000, // 超时时间
-    headers: {
-        'Content-Type': 'application/json',
-    }, // 设置请求头
     withCredentials: true, // 跨域请求时是否需要使用凭证
 });
+
 
 // 配置请求拦截器,在请求之前的数据处理,比如在请求头添加token,所有的请求都会经过拦截器
 instace.interceptors.request.use((config) => {
@@ -35,6 +34,14 @@ instace.interceptors.response.use((response) => {
         localStorage.setItem('Authorization', response.headers["x-new-token"])
     }
 
+    // 判断是否过期
+    if (response.data.code === 401) {
+        const authStore = useAuthStore();
+        localStorage.removeItem('Authorization')
+        ElMessage.error(response.data.message)
+        authStore.loginDialog = true
+    }
+
     return response;
 }, (err) => {
 
@@ -43,17 +50,19 @@ instace.interceptors.response.use((response) => {
 );
 
 // 封装请求的api
-const callapi = (method = "GET", url: string, data = {}) => {
+const http = (method = "GET", url: string, data: object, headers: object, responseType: any) => {
     return instace({
         method,
         url,
         params: method === "GET" ? data : {},
         data: method === "POST" || method === "PUT" || "DELETE" ? data : {},
+        headers,
+        responseType,
     });
 };
 
 // 封装请求函数
-export const get = (url: string, data = {}) => callapi("GET", url, data);
-export const post = (url: string, data = {}) => callapi("POST", url, data);
-export const put = (url: string, data = {}) => callapi("PUT", url, data);
-export const deleted = (url: string, data = {}) => callapi("DELETE", url, data);
+export const get = ({ url, data = {}, headers = { 'Content-Type': 'application/json' }, responseType = 'json' }: { url: string, data?: object, headers?: object, responseType?: string }) => http("GET", url, data, headers, responseType);
+export const post = ({ url, data = {}, headers = { 'Content-Type': 'application/json' }, responseType = 'json' }: { url: string, data?: object, headers?: object, responseType?: string }) => http("POST", url, data, headers, responseType);
+export const put = ({ url, data = {}, headers = { 'Content-Type': 'application/json' }, responseType = 'json' }: { url: string, data?: object, headers?: object, responseType?: string }) => http("PUT", url, data, headers, responseType);
+export const deleted = ({ url, data = {}, headers = { 'Content-Type': 'application/json' }, responseType = 'json' }: { url: string, data?: object, headers?: object, responseType?: string }) => http("DELETE", url, data, headers, responseType);

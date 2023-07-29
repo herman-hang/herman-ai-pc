@@ -3,12 +3,13 @@
   <RouterView />
 
   <!-- 登录对话框 -->
-  <el-dialog v-model="loginDialogVisible" center align-center :before-close="beforeCloseDialog" :show-close="false"
+  <el-dialog v-model="authStore.loginDialog" center align-center :before-close="beforeCloseDialog" :show-close="false"
     width="45%">
     <div class="flex justify-center">
       <span class="text-lg mb-3 font-semibold">用户登录</span>
     </div>
-    <el-form :model="loginForm" :rules="loginFormRules" ref="loginFormRef" label-width="80px">
+    <el-form :model="loginForm" :rules="loginFormRules" ref="loginFormRef" label-width="80px"
+      @keyup.enter="login(loginFormRef)">
       <el-form-item label="手机号码" prop="phone">
         <el-input v-model="loginForm.phone" placeholder="请输入手机号码"></el-input>
       </el-form-item>
@@ -36,11 +37,10 @@ import { reactive, ref, onMounted } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { SendCode, Login } from '@/api/home'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth';
 
 // 滑块验证码引用
 const verify = ref()
-// 登录对话框开关
-const loginDialogVisible = ref(false);
 // 登录表单
 const loginForm = reactive({
   phone: '',
@@ -69,12 +69,13 @@ const countDown = ref(0);
 const buttonText = ref('获取验证码');
 // 点击登录按钮加载状态
 const isLogining = ref(false);
-
+// 登录状态对话框监听对象
+const authStore = useAuthStore();
 
 onMounted(() => {
   const token = localStorage.getItem('Authorization')
-  if (token === null || token === '') {
-    loginDialogVisible.value = true
+  if (!token) {
+    authStore.loginDialog = true
   }
 })
 
@@ -94,20 +95,17 @@ const login = (formEl: FormInstance | undefined) => {
   if (!formEl) return
   formEl.validate((valid) => {
     if (valid) {
-      // 开启登录请求状态
+      // 开启登录按钮加载状态
       isLogining.value = true;
       Login(loginForm).then(res => {
         isLogining.value = false;
-        if (res.data.code !== 200) {
-          ElMessage({
-            type: 'error',
-            message: res.data.message,
-          })
-        } else {
-          loginDialogVisible.value = false;
+        if (res.data.code === 200) {
+          authStore.loginDialog = false
           // 缓存token
           localStorage.setItem('Authorization', res.data.data)
-          loginDialogVisible.value = false
+          ElMessage.success(res.data.message)
+        } else {
+          ElMessage.error(res.data.message)
         }
       })
     } else {
@@ -142,7 +140,7 @@ const checkCaptchaSuccess = (res: any) => {
       }, 1000);
     }
   })
-
 }
+
 </script>
 <style lang="scss" scoped></style>

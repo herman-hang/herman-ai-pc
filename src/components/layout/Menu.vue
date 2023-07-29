@@ -3,7 +3,7 @@
         <div class="flex flex-col justify-center items-center">
             <div class="mt-5 w-10 h-10 focus:outline-none cursor-pointer select-none" @click="openUserInfoDialog">
                 <el-avatar
-                    :src="userInfo.photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : userInfo.photo" />
+                    :src="photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : photo" />
             </div>
 
             <!-- GPT -->
@@ -27,7 +27,6 @@
                     @click="changeShow(2)">
                     <el-icon size="12"><i-ep-CaretRight v-if="isShow === 2" /></el-icon>
                     <el-icon size="25" color="white">
-                        <!-- <img class="img-color" src="/src/assets/images/mj.png"> -->
                         <svg t="1690101903394" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                             p-id="1778" data-spm-anchor-id="a313x.7781069.0.i3">
                             <path
@@ -66,18 +65,21 @@
         <!-- 个人信息对话框 -->
         <el-dialog v-model="isUserInfoDialog" title="个人信息" width="45%">
             <div class="flex justify-center items-center m-2 focus:outline-none cursor-pointer select-none">
-                <el-avatar :size="70"
-                    :src="userInfo.photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : userInfo.photo" />
+                <el-upload class="avatar-uploader" :action="uploadUrl" name="files" multiple :headers="headers"
+                    :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload">
+                    <el-avatar :size="70"
+                        :src="photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : photo" />
+                </el-upload>
             </div>
             <el-form label-width="70px">
                 <el-form-item label="ID">
-                    <el-input disabled v-model="userInfo.id" />
+                    <el-input disabled v-model="userInfo.data.id" />
                 </el-form-item>
                 <el-form-item label="手机号码">
-                    <el-input disabled v-model="userInfo.phone" />
+                    <el-input disabled v-model="userInfo.data.phone" />
                 </el-form-item>
                 <el-form-item label="昵称">
-                    <el-input autocomplete="off" v-model="userInfo.nickname" />
+                    <el-input v-model="userInfo.data.nickname" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -94,16 +96,26 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from "vue"
-import { UserInfo } from '@/api/home'
+import { onMounted, reactive, ref, watch } from "vue"
+import { UserInfo, Preview, ModifyUser } from '@/api/home'
+import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth';
+
 const isShow = ref<number>(1)
 const isUserInfoDialog = ref(false)
-let userInfo = reactive({
-    'id': 0,
-    'phone': '',
-    'nickname': '',
-    'photo': ''
+const photo = ref('')
+const uploadUrl = import.meta.env.VITE_BASE_URL + 'pc/files/uploads'
+const headers = { Authorization: localStorage.getItem('Authorization') }
+const userInfo = reactive({
+    data: {
+        'id': 0,
+        'phone': '',
+        'nickname': '',
+        'photoId': 0
+    }
 })
+// 登录状态对话框监听对象
+const authStore = useAuthStore();
 
 onMounted(() => {
     getUserInfo()
@@ -111,10 +123,30 @@ onMounted(() => {
 
 // 获取用户信息
 const getUserInfo = () => {
+    const token = localStorage.getItem('Authorization')
+    // 登录状态监听对象
+    if (!token) {
+        return;
+    }
     UserInfo().then(res => {
-        if (res.data.code == 200) {
-            userInfo = res.data.data
+        if (res.data.code === 200) {
+            userInfo.data = res.data.data
+            // 预览头像
+            if (res.data.data.photoId !== 0) {
+                previewImage(res.data.data.photoId)
+            }
+        } else {
+            ElMessage.error(res.data.message)
         }
+    })
+}
+
+// 预览图片
+const previewImage = (photoId: number) => {
+    Preview(photoId).then(resp => {
+        const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+        const imageUrl = URL.createObjectURL(blob);
+        photo.value = imageUrl
     })
 }
 
@@ -130,19 +162,72 @@ const userInfoCancel = () => {
 
 // 个人信息对话框确定操作
 const userInfoConfirm = () => {
-
+    ModifyUser({ photoId: userInfo.data.photoId, nickname: userInfo.data.nickname }).then(res => {
+        if (res.data.code === 200) {
+            isUserInfoDialog.value = false
+            ElMessage.success(res.data.message)
+        } else {
+            ElMessage.error(res.data.message)
+        }
+    })
 }
 
 // 打开个人信息对话框
 const openUserInfoDialog = () => {
+    const token = localStorage.getItem('Authorization')
     getUserInfo()
-    isUserInfoDialog.value = true
+    if (token) {
+        isUserInfoDialog.value = true
+    }
 }
 
+// 上传头像前钩子函数
+const beforeAvatarUpload = (file: File) => {
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (extension !== undefined && !['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
+        ElMessage.error('不支持该格式头像')
+        return false
+    }
+
+    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+        ElMessage.error('不支持该格式头像')
+        return false
+    }
+
+    if (file.size / 1024 / 1024 > 10) {
+        ElMessage.error('头像大小不能超过10MB')
+        return false
+    }
+
+    return true
+};
+
+// 上传头像成功钩子函数
+const handleAvatarSuccess = (response: any) => {
+    if (response.code === 200) {
+        ElMessage.success('上传成功！')
+        // 预览头像
+        Preview(response.data[0].id).then(resp => {
+            previewImage(response.data[0].id)
+            // 发起修改头像信息请求
+            ModifyUser({ photoId: response.data[0].id, nickname: userInfo.data.nickname }).then(res => {
+                if (res.data.code !== 200) {
+                    ElMessage.error(res.data.message)
+                }
+            })
+        })
+
+    } else {
+        ElMessage.error(response!.message)
+    }
+};
+
+// 监听登录状态
+watch(() => authStore.loginDialog, (newValue, oldValue) => {
+    if (oldValue) {
+        getUserInfo()
+    }
+})
 </script>
 
-<style lang="scss" scoped>
-.img-color {
-    filter: brightness(0) invert(1);
-}
-</style>
+<style lang="scss" scoped></style>
