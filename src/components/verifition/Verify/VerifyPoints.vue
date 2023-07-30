@@ -48,7 +48,7 @@
  * */
 import { resetSize, _code_chars, _code_color1, _code_color2 } from './../utils/util'
 import { aesEncrypt } from "./../utils/ase"
-import { GetCaptcha, CheckCaptcha } from '../../../api/home'
+import { GetCaptcha, CheckCaptcha } from '@/api/home'
 import { computed, onMounted, reactive, ref, watch, nextTick, toRefs, watchEffect, getCurrentInstance } from 'vue';
 export default {
     name: 'VerifyPoints',
