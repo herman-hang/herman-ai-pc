@@ -10,7 +10,7 @@
             <el-tooltip content="GPT" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(1)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="isShow === 1" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 1" /></el-icon>
                     <el-icon size="25" color="white">
                         <svg viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.5">
                             <path
@@ -25,7 +25,7 @@
             <el-tooltip content="绘图" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(2)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="isShow === 2" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 2" /></el-icon>
                     <el-icon size="25" color="white">
                         <svg t="1690101903394" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                             p-id="1778" data-spm-anchor-id="a313x.7781069.0.i3">
@@ -42,7 +42,7 @@
             <el-tooltip content="语音合成" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(3)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="isShow === 3" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 3" /></el-icon>
                     <el-icon size="25" color="white">
                         <el-icon><i-ep-Mic /></el-icon>
                     </el-icon>
@@ -53,7 +53,7 @@
             <el-tooltip content="文档" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(4)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="isShow === 4" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 4" /></el-icon>
                     <el-icon size="25" color="white">
                         <el-icon><i-ep-Document /></el-icon>
                     </el-icon>
@@ -100,8 +100,8 @@ import { onMounted, reactive, ref, watch } from "vue"
 import { UserInfo, Preview, ModifyUser } from '@/api/home'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth';
+import { useAiStore } from '@/stores/ai'
 
-const isShow = ref<number>(1)
 const isUserInfoDialog = ref(false)
 const photo = ref('')
 const uploadUrl = import.meta.env.VITE_BASE_URL + 'pc/files/uploads'
@@ -116,7 +116,8 @@ const userInfo = reactive({
 })
 // 登录状态对话框监听对象
 const authStore = useAuthStore();
-
+// AI类型状态监听
+const aiStore = useAiStore()
 onMounted(() => {
     getUserInfo()
 })
@@ -152,7 +153,7 @@ const previewImage = (photoId: number) => {
 
 // 选中AI产品
 const changeShow = (index: number) => {
-    isShow.value = index
+    aiStore.aiType = index
 }
 
 // 个人信息对话框取消操作

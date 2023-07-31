@@ -1,4 +1,6 @@
-import { app, BrowserWindow, Menu, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain, Tray } from 'electron'
+const path = require('path')
+let tray = null  // 在外面创建tray变量，防止被自动删除，导致图标自动消失
 
 // 创建一个窗口
 async function createWindow() {
@@ -11,8 +13,30 @@ async function createWindow() {
             nodeIntegration: true, // 启用Node.js集成
             contextIsolation: false, // 禁用上下文隔离
             webSecurity: false, // 禁用web安全策略
-        }
+        },
+        icon: path.join(__dirname, '/favicon.ico') // 设置窗口图标
     });
+
+    // 创建任务栏图标
+    tray = new Tray(path.join(__dirname, '/', 'favicon.ico'))
+    // 自定义托盘图标的内容菜单
+    const contextMenu = Menu.buildFromTemplate([
+        {
+            // 点击退出菜单退出程序
+            label: '退出', click: function () {
+                win.destroy()
+                app.quit()
+
+            }
+        }
+    ])
+
+    tray.setToolTip('Herman AI')  // 设置鼠标指针在托盘图标上悬停时显示的文本
+    tray.setContextMenu(contextMenu)  // 设置图标的内容菜单
+    // 点击托盘图标，显示主窗口
+    tray.on("click", () => {
+        win.show();
+    })
 
     // 隐藏菜单栏
     Menu.setApplicationMenu(null);
@@ -51,14 +75,29 @@ app.whenReady().then(async () => {
     })
 
     // 关闭窗口
-    ipcMain.on('window-close', function () {
-        win.close();
+    ipcMain.on('window-close', function (e) {
+        e.preventDefault();  // 阻止退出程序
+        win.setSkipTaskbar(true)   // 取消任务栏显示
+        win.hide();    // 隐藏主程序窗口
     })
 
-    // 拖动窗口
-    ipcMain.on('drag-window', (_, { offsetX, offsetY }) => {
-        const currentPosition = win.getPosition();
-        win.setPosition(currentPosition[0] + offsetX, currentPosition[1] + offsetY);
+    // 监听窗口最大化事件
+    win.on('maximize', () => {
+        win.webContents.send('window-maximized');
+    });
+
+    // 监听窗口取消最大化事件
+    win.on('unmaximize', () => {
+        win.webContents.send('window-unmaximized');
+    });
+
+    // 监听窗口最大化状态
+    ipcMain.on('get-window-maximized', (event) => {
+        if (win.isMaximized()) {
+            event.sender.send('window-maximized');
+        } else {
+            event.sender.send('window-unmaximized');
+        }
     });
 
     // 根据命令行参数加载URL或本地文件

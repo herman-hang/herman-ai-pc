@@ -31,7 +31,7 @@ export default defineConfig({
     viteElectronDev(),
     viteElectronTest(),
     viteElectronBuild(),
-    Icons({autoInstall: true}),
+    Icons({ autoInstall: true }),
   ],
 
   base: "./", // 默认绝对路径，改成相对路径

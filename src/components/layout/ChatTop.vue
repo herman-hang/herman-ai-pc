@@ -1,5 +1,5 @@
 <template>
-    <div class="flex flex-col bg-white h-14" style="-webkit-app-region: drag" @mousedown="handleMouseDown">
+    <div class="flex flex-col bg-white h-14" style="-webkit-app-region: drag">
         <div class="h-6 flex justify-end">
             <!-- 最小化 -->
             <el-icon style="-webkit-app-region: no-drag" size="16"
@@ -22,11 +22,11 @@
             </el-icon>
             <el-icon style="-webkit-app-region: no-drag" v-else size="16"
                 class="mx-2 pt-1 hover:bg-gray-200 focus:outline-none cursor-pointer" @click="maxWindow">
-                <svg v-if="isElectron" t="1690036894705" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                    xmlns="http://www.w3.org/2000/svg" p-id="7745" width="200" height="200">
+                <svg t="1690766518491" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                    p-id="1781" width="200" height="200">
                     <path
-                        d="M770.9 923.3H253.1c-83.8 0-151.9-68.2-151.9-151.9V253.6c0-83.8 68.2-151.9 151.9-151.9h517.8c83.8 0 151.9 68.2 151.9 151.9v517.8c0 83.8-68.1 151.9-151.9 151.9zM253.1 181.7c-39.7 0-71.9 32.3-71.9 71.9v517.8c0 39.7 32.3 71.9 71.9 71.9h517.8c39.7 0 71.9-32.3 71.9-71.9V253.6c0-39.7-32.3-71.9-71.9-71.9H253.1z"
-                        p-id="7746" fill="#2c2c2c"></path>
+                        d="M800 928H224c-70.692 0-128-57.308-128-128V224c0-70.692 57.308-128 128-128h576c70.692 0 128 57.308 128 128v576c0 70.692-57.308 128-128 128z m64-704c0-35.346-28.654-64-64-64H224c-35.346 0-64 28.654-64 64v576c0 35.346 28.654 64 64 64h576c35.346 0 64-28.654 64-64V224z"
+                        p-id="1782"></path>
                 </svg>
             </el-icon>
             <!-- 关闭 -->
@@ -47,7 +47,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref } from "vue"
+import { onMounted, ref } from "vue"
 const isMax = ref<boolean>(false)
 let ipcRenderer: any = null
 const isElectron = navigator.userAgent.toLowerCase().indexOf('electron/') > -1;
@@ -57,6 +57,13 @@ if (isElectron) {
     const electron = require('electron')
     ipcRenderer = electron.ipcRenderer
 }
+
+// 组件完成渲染时调用
+onMounted(() => {
+    if (isElectron) {
+        isMaximized()
+    }
+})
 
 // 最小化
 const minWindow = () => {
@@ -80,8 +87,21 @@ const closeWindow = () => {
     }
 }
 
-const handleMouseDown = (event:any) => {
+// 监听窗口最大化状态
+const isMaximized = () => {
+    if (isElectron) {
+        ipcRenderer.on('window-maximized', () => {
+            isMax.value = true
+        });
+
+        ipcRenderer.on('window-unmaximized', () => {
+            isMax.value = false
+        });
+
+        ipcRenderer.send('get-window-maximized');
+    }
 }
+
 </script>
 
 <style lang="scss" scoped></style>
