@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, ipcMain, Tray } from 'electron'
-const path = require('path')
+import path from 'path'
+
 let tray = null  // 在外面创建tray变量，防止被自动删除，导致图标自动消失
 
 // 创建一个窗口
@@ -14,7 +15,7 @@ async function createWindow() {
             contextIsolation: false, // 禁用上下文隔离
             webSecurity: false, // 禁用web安全策略
         },
-        icon: path.join(__dirname, '/favicon.ico') // 设置窗口图标
+        icon: path.join(__dirname, '/', 'favicon.ico') // 设置窗口图标
     });
 
     // 创建任务栏图标

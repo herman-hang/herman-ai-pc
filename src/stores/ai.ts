@@ -6,6 +6,5 @@ export const useAiStore = defineStore({
     state: () => ({
         aiType: 1,
     }),
-    actions: {
-    },
+    actions: {},
 });

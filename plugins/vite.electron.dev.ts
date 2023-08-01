@@ -37,7 +37,7 @@ export const viteElectronDev = (): Plugin => {
                 const addressInfo = server?.httpServer?.address() as AddressInfo
                 const argv = JSON.stringify({
                     domain: `http://localhost:${addressInfo.port}`,
-                    port: "8080",
+                    port: addressInfo.port,
                     debug: env.VITE_APP_DEBUG === 'false' ? false : true
                 })
                 if (!electronProcess) {

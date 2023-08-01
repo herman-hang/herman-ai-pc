@@ -65,7 +65,7 @@
         <!-- 个人信息对话框 -->
         <el-dialog v-model="isUserInfoDialog" title="个人信息" width="45%">
             <div class="flex justify-center items-center m-2 focus:outline-none cursor-pointer select-none">
-                <el-upload class="avatar-uploader" :action="uploadUrl" name="files" multiple :headers="headers"
+                <el-upload class="avatar-uploader" :action="uploadUrl" name="files" multiple :headers="headers.data"
                     :show-file-list="false" :on-success="handleAvatarSuccess" :before-upload="beforeAvatarUpload">
                     <el-avatar :size="70"
                         :src="photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : photo" />
@@ -105,7 +105,8 @@ import { useAiStore } from '@/stores/ai'
 const isUserInfoDialog = ref(false)
 const photo = ref('')
 const uploadUrl = import.meta.env.VITE_BASE_URL + 'pc/files/uploads'
-const headers = { Authorization: localStorage.getItem('Authorization') }
+const headers = reactive({ data: { Authorization: localStorage.getItem('Authorization') } })
+
 const userInfo = reactive({
     data: {
         'id': 0,
@@ -199,25 +200,17 @@ const beforeAvatarUpload = (file: File) => {
         ElMessage.error('头像大小不能超过10MB')
         return false
     }
-
+    headers.data = { Authorization: localStorage.getItem('Authorization') }
     return true
 };
 
 // 上传头像成功钩子函数
 const handleAvatarSuccess = (response: any) => {
     if (response.code === 200) {
-        ElMessage.success('上传成功！')
+        ElMessage.success(response.message)
         // 预览头像
-        Preview(response.data[0].id).then(resp => {
-            previewImage(response.data[0].id)
-            // 发起修改头像信息请求
-            ModifyUser({ photoId: response.data[0].id, nickname: userInfo.data.nickname }).then(res => {
-                if (res.data.code !== 200) {
-                    ElMessage.error(res.data.message)
-                }
-            })
-        })
-
+        previewImage(response.data[0].id)
+        userInfo.data.photoId = response.data[0].id
     } else {
         ElMessage.error(response!.message)
     }

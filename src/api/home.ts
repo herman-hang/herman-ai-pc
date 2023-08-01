@@ -18,3 +18,9 @@ export const DownloadFile = (id: number) => get({ url: '/pc/files/download/' + i
 export const Preview = (id: number) => get({ url: '/pc/files/preview/' + id, responseType: 'blob' })
 // 修改用户信息
 export const ModifyUser = (data: object) => put({ url: '/pc/users', data: data })
+// 新增聊天室
+export const AddChatroom = (data: object) => post({ url: '/pc/chat/rooms', data: data })
+// 聊天室列表
+export const ChatroomList = (data: object) => get({ url: '/pc/chat/rooms', data: data })
+// 删除聊天室
+export const DeleteChatroom = (data: object) => deleted({ url: '/pc/chat/rooms', data: data })

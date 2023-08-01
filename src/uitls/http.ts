@@ -38,7 +38,7 @@ instace.interceptors.response.use((response) => {
     if (response.data.code === 401) {
         const authStore = useAuthStore();
         localStorage.removeItem('Authorization')
-        ElMessage.error(response.data.message)
+        // ElMessage.error(response.data.message)
         authStore.loginDialog = true
     }
 
