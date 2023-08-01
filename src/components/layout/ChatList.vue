@@ -3,7 +3,8 @@
         <!-- 搜索框 -->
         <div class="flex justify-center items-center h-14 bg-white">
             <div class="flex justify-center items-center">
-                <el-input clearable v-model="queryInfo.data.keywords" size="small" :prefix-icon="Search" placeholder="搜索" />
+                <el-input clearable v-model="queryInfo.keywords" size="small" :prefix-icon="Search" placeholder="搜索"
+                    @change="List" @input="handleInput" @clear="List" />
                 <div class="text-gray-400 hover:text-gray-500" @click="addAction">
                     <el-icon class="m-2" size="18">
                         <i-ep-CirclePlus />
@@ -36,7 +37,7 @@
                     </div>
                 </div>
             </div>
-            <div v-else class="flex justify-center">
+            <div v-else class="flex justify-center mt-2">
                 <span class="text-gray-400 font-medium text-sm">无数据~</span>
             </div>
         </el-scrollbar>
@@ -63,15 +64,16 @@
 
     <!-- 重命名对话框 -->
     <el-dialog v-model="isRename" title="重命名" width="45%">
-        <el-form @keyup.enter="renameConfirm">
-            <el-form-item>
-                <el-input v-model="selectedMessage.name" placeholder="请输入名称" />
+        <el-form :model="selectedMessage" ref="renameFormRef" :rules="renameFormRules"
+            @keyup.enter="renameConfirm(renameFormRef)">
+            <el-form-item prop="name">
+                <el-input v-model="selectedMessage.name" placeholder="请输入名称"/>
             </el-form-item>
         </el-form>
         <template #footer>
             <span class="dialog-footer">
-                <el-button color="#626aef" plain @click="isRename = false">取消</el-button>
-                <el-button @click="renameConfirm" color="#626aef">
+                <el-button color="#626aef" plain @click="renameCancel">取消</el-button>
+                <el-button @click="renameConfirm(renameFormRef)" color="#626aef">
                     确定
                 </el-button>
             </span>
@@ -87,7 +89,7 @@
         </el-form>
         <template #footer>
             <span class="dialog-footer">
-                <el-button color="#626aef" plain @click="isAdd = false">取消</el-button>
+                <el-button color="#626aef" plain @click="addCancel">取消</el-button>
                 <el-button @click="addConfirm(addFormRef)" color="#626aef">
                     确定
                 </el-button>
@@ -116,11 +118,12 @@
 import { ref, reactive, onMounted, onUnmounted, onBeforeUnmount, watch } from "vue"
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import type { FormInstance } from 'element-plus'
 import { useAiStore } from '@/stores/ai'
 import { useAuthStore } from '@/stores/auth';
-import { AddChatroom, ChatroomList, Preview, DeleteChatroom } from '@/api/home'
+import { AddChatroom, ChatroomList, Preview, DeleteChatroom, ModifyChatroom } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
-import type { FormInstance } from 'element-plus'
+import { debounce } from 'lodash'
 
 // AI类型状态监听
 const aiStore = useAiStore()
@@ -128,20 +131,18 @@ const aiStore = useAiStore()
 const authStore = useAuthStore();
 // 列表对象
 const queryInfo = reactive({
-    data: {
-        //搜索关键字
-        keywords: '',
-        //当前页码
-        page: 1,
-        // 总条数
-        total: 0,
-        // 总页数
-        pageNum: 0,
-        //每页显示多少条数据
-        pageSize: 25,
-        // Ai类型
-        aiType: aiStore.aiType
-    }
+    //搜索关键字
+    keywords: '',
+    //当前页码
+    page: 1,
+    // 总条数
+    total: 0,
+    // 总页数
+    pageNum: 0,
+    //每页显示多少条数据
+    pageSize: 25,
+    // Ai类型
+    aiType: aiStore.aiType
 })
 // 定义messages的类型
 type Message = {
@@ -161,7 +162,14 @@ const isContextMenuVisible = ref(false);
 // 右键菜单的位置
 const contextMenuPosition = ref({ left: 0, top: 0 });
 // 用于存储 message 的值
-let selectedMessage = reactive<any>({})
+const selectedMessage = reactive<Message>({
+    id: 0,
+    photoId: null,
+    photo: '',
+    name: '',
+    createdAt: '',
+    newest: ''
+})
 // 重命名对话框状态
 const isRename = ref(false);
 // 新增对话框状态
@@ -174,9 +182,17 @@ const isDelete = ref(false);
 const selectId = ref(0)
 // 新增表单引用
 const addFormRef = ref<FormInstance>()
-// 登录表单验证规则
+// 重命名表单引用
+const renameFormRef = ref<FormInstance>()
+// 新增表单验证规则
 const addFormRules = ref({
     addChatroomName: [
+        { required: true, message: '请输入名称', trigger: 'blur' },
+    ]
+});
+// 重命名表单验证规则
+const renameFormRules = ref({
+    name: [
         { required: true, message: '请输入名称', trigger: 'blur' },
     ]
 });
@@ -198,9 +214,10 @@ onBeforeUnmount(() => {
 onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
+
 // 监听AI类型切换状态
 watch(() => aiStore.aiType, (newValue, oldValue) => {
-    queryInfo.data.aiType = newValue
+    queryInfo.aiType = newValue
     List()
 })
 
@@ -227,16 +244,21 @@ const handleClick = (event: any) => {
 }
 
 // 显示右键菜单
-const showContextMenu = (event: any, message: any) => {
+const showContextMenu = (event: MouseEvent, message: Message) => {
     event.preventDefault();
     // 获取鼠标点击的位置
     const { clientX, clientY } = event;
     // 设置右键菜单的位置
     contextMenuPosition.value = { left: clientX, top: clientY };
+    // 存储message
+    selectedMessage.createdAt = message.createdAt
+    selectedMessage.id = message.id
+    selectedMessage.name = message.name
+    selectedMessage.newest = message.newest
+    selectedMessage.photo = message.photo
+    selectedMessage.photoId = message.photoId
     // 显示右键菜单
     isContextMenuVisible.value = true;
-    // 存储message
-    selectedMessage = message
 };
 
 // 隐藏右键菜单
@@ -246,20 +268,42 @@ const hideContextMenu = () => {
 
 // 重命名对话框弹出操作
 const renameAction = () => {
-    // 执行重命名操作
-    isRename.value = true
     // 隐藏右键菜单
     hideContextMenu();
+    // 显示重命名对话框
+    isRename.value = true
 };
 
 // 重命名对话框确定操作
-const renameConfirm = () => {
-    console.log(selectedMessage)
+const renameConfirm = (formEl: FormInstance | undefined) => {
+    if (!formEl) return
+    formEl.validate((valid) => {
+        if (valid) {
+            ModifyChatroom(selectedMessage).then(res => {
+                if (res.data.code === 200) {
+                    List()
+                    isRename.value = false
+                    ElMessage.success(res.data.message)
+                } else {
+                    ElMessage.error(res.data.message)
+                }
+            })
+        } else {
+            return false
+        }
+    })
+
+}
+
+// 重命名对话框取消操作
+const renameCancel = () => {
+    List()
+    isRename.value = false
 }
 
 // 删除对话弹出框操作
 const deleteAction = () => {
-    // 执行删除操作
+    // 删除对话框标识
     isDelete.value = true
     // 隐藏右键菜单
     hideContextMenu();
@@ -292,22 +336,15 @@ const List = () => {
         return;
     }
 
-    ChatroomList(queryInfo.data).then(res => {
+    ChatroomList(queryInfo).then(res => {
+        console.log(res)
         if (res.data.code === 200) {
-            queryInfo.data = {
-                //搜索关键字
-                keywords: '',
-                //当前页码
-                page: res.data.data.page,
-                // 总条数
-                total: res.data.data.total,
-                // 总页数
-                pageNum: res.data.data.pageNum,
-                //每页显示多少条数据
-                pageSize: res.data.data.pageNum,
-                // AI类型
-                aiType: aiStore.aiType
-            }
+            queryInfo.page = res.data.data.page;
+            queryInfo.total = res.data.data.total;
+            queryInfo.pageNum = res.data.data.pageNum;
+            queryInfo.pageSize = res.data.data.pageSize;
+            queryInfo.aiType = aiStore.aiType;
+
             if (Array.isArray(res.data.data.list) && res.data.data.list.length > 0) {
                 res.data.data.list.forEach((item: Message) => {
                     if (item.photoId !== null) {
@@ -328,7 +365,7 @@ const List = () => {
     })
 }
 
-// 新增聊天室确定操作
+// 新增聊天室对话框确定操作
 const addConfirm = (formEl: FormInstance | undefined) => {
     if (!formEl) return
     formEl.validate((valid) => {
@@ -338,6 +375,7 @@ const addConfirm = (formEl: FormInstance | undefined) => {
                     // 刷新列表
                     List()
                     isAdd.value = false
+                    ElMessage.success(res.data.message)
                 } else {
                     ElMessage.error(res.data.message)
                 }
@@ -348,20 +386,30 @@ const addConfirm = (formEl: FormInstance | undefined) => {
     })
 }
 
+// 新增聊天室对话框取消操作
+const addCancel = () => {
+    List()
+    isAdd.value = false
+}
+
 // 列表鼠标点击选中操作
 const showSelectItem = (id: number) => {
     selectId.value = id
 }
 
+// 监听搜索框防抖
+const handleInput = debounce(() => {
+    List()
+}, 300);
 
 </script>
 
 <style lang="scss" scoped>
 .line-clamp {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 1; /* 显示两行 */
-  -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
 }
 </style>
