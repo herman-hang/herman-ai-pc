@@ -3,8 +3,8 @@
   <RouterView />
 
   <!-- 登录对话框 -->
-  <el-dialog v-model="useAuthStore().getLoginDialogState" center align-center :before-close="beforeCloseDialog"
-    :show-close="false" width="45%">
+  <el-dialog v-model="loginDialogState" center align-center :before-close="beforeCloseDialog" :show-close="false"
+    width="45%">
     <div class="flex justify-center">
       <span class="text-lg mb-3 font-semibold">用户登录</span>
     </div>
@@ -33,12 +33,13 @@
   </el-dialog>
 </template>
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { SendCode, Login } from '@/api/home'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth';
-
+// 登录对话框打开状态
+const loginDialogState = ref(false);
 // 滑块验证码引用
 const verify = ref()
 // 登录表单
@@ -72,7 +73,7 @@ const isLogining = ref(false);
 
 onMounted(() => {
   const token = localStorage.getItem('Authorization')
-  if (!token) {
+  if (token === '' || token === null || token === undefined) {
     useAuthStore().setLoginDialog(true)
   }
 })
@@ -134,6 +135,11 @@ const checkCaptchaSuccess = async (call: any) => {
     }, 1000);
   }
 }
-
+// 监听登录状态
+watch(() => useAuthStore().getLoginDialogState, (newValue, oldValue) => {
+  if (oldValue) {
+    loginDialogState.value = true
+  }
+})
 </script>
 <style lang="scss" scoped></style>

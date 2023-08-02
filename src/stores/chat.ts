@@ -3,16 +3,30 @@ import { defineStore } from 'pinia'
 export const useChatStore = defineStore({
     id: 'chat',
     state: () => ({
-        selectedChatroom: {},
+        selectedChatroomId: 0,
+        selectedChatroomName: '',
+        scroll: false
     }),
     actions: {
-        selectChatroom(chatroom: object) {
-            this.selectedChatroom = chatroom
+        setSelectChatroomId(selectedChatroomId: number) {
+            this.selectedChatroomId = selectedChatroomId
+        },
+        setSelectChatroomName(selectedChatroomName: string) {
+            this.selectedChatroomName = selectedChatroomName
+        },
+        setScroll(state: boolean) {
+            this.scroll = state
         }
     },
     getters: {
-        getSelectedChatroom(): object {
-            return this.selectedChatroom
+        getSelectedChatroomId(): number {
+            return this.selectedChatroomId
+        },
+        getSelectedChatroomName(): string {
+            return this.selectedChatroomName
+        },
+        getScrollState(): boolean {
+            return this.scroll
         }
     }
 });

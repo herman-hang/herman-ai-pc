@@ -1,28 +1,34 @@
 <template>
     <div class="flex flex-col" :style="{ height: chatContentHeight + 'px' }">
         <!-- 内容区 -->
-        <el-scrollbar class="px-4" ref="scrollbarRef">
+        <el-scrollbar class="px-4 scroll-container" ref="scrollbarRef" @scroll="loadListData">
             <div ref="innerRef">
-                <div v-for="message in messages" :key="message.id" class="mb-4" ref="child">
+                <div v-if="messages.data.length > 0" v-for="message in messages.data" :key="message.id" class="mb-4"
+                    ref="child">
                     <div class="flex justify-center text-xs text-gray-400">
-                        20:24:30
+                        {{ message.createdAt }}
                     </div>
                     <!-- 发送内容 -->
-                    <div v-if="message.isSent" class="flex justify-end items-center">
+                    <div v-if="message.isMe" class="flex justify-end items-center">
                         <div
                             class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-1 px-2 rounded-lg break-words text-sm">
-                            {{ message.text }}</div>
+                            {{ message.content }}</div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
-                            <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+                            <el-avatar
+                                :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
                     </div>
                     <!-- 接收内容 -->
                     <div v-else class="flex justify-start items-center">
                         <div class="w-10 h-10 mr-1 justify-center items-center">
-                            <el-avatar src="https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png" />
+                            <el-avatar
+                                :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
-                        <div class="bg-gray-200 py-1 px-2 rounded-lg break-words text-sm">{{ message.text }}</div>
+                        <div class="bg-gray-200 py-1 px-2 rounded-lg break-words text-sm">{{ message.content }}</div>
                     </div>
+                </div>
+                <div v-else class="flex justify-center items-center mt-2">
+                    <span class="text-gray-400 font-medium text-sm">无数据~</span>
                 </div>
             </div>
         </el-scrollbar>
@@ -43,7 +49,9 @@ import { ref, onMounted, onUnmounted, reactive, nextTick, watch } from "vue"
 import { Promotion } from '@element-plus/icons-vue'
 import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
-import { SendMessage } from '@/api/home'
+import { SendMessage, MessageList, Preview } from '@/api/home'
+import { formatDate } from '@/uitls/formatDate'
+import { debounce } from 'lodash'
 // 内容区引用
 const innerRef = ref<HTMLDivElement>()
 // 滚动条引用
@@ -52,42 +60,47 @@ const scrollbarRef = ref<InstanceType<typeof ElScrollbarType>>()
 const sendContent = ref<string>('')
 // 自适应内容区高度
 const chatContentHeight = ref<number>(0)
+// 定义messages的类型
+type Message = {
+    id: number; // 消息ID
+    isMe: boolean; // 是否是我
+    senderId: number, // 发送者ID
+    receiverId: number; // 接收者
+    photoId: number, // 头像ID
+    photo: string, // 头像临时url
+    content: string; // 消息内容
+    createdAt: string // 发送时间
+};
+// 消息列表对象
+const queryInfo = reactive({
+    // 当前页码
+    page: 1,
+    // 总条数
+    total: 0,
+    // 总页数
+    pageNum: 0,
+    // 每页显示多少条数据
+    pageSize: 25,
+    // 聊天室ID
+    chatroomId: useChatStore().getSelectedChatroomId
+})
+// 消息内容列表
+const messages = reactive<{ data: Message[] }>({ data: [] });
+// 头像数组类型定义
+type Avatar = {
+    id: number,
+    url: string
+}
+// 定义响应式的头像数组对象
+const avatarArray = reactive<Avatar[]>([]);
 
-// 内容列表
-const messages = reactive([
-    { id: 1, text: 'Hello!', isSent: true },
-    { id: 2, text: 'Hi!', isSent: false },
-    { id: 3, text: 'How are you?', isSent: true },
-    { id: 4, text: 'I\'m good, thanks!', isSent: false },
-    { id: 5, text: 'Hello!', isSent: true },
-    { id: 6, text: '4456!', isSent: false },
-    { id: 7, text: '123', isSent: true },
-    { id: 8, text: 'I\'m good, thanks!', isSent: false },
-    { id: 9, text: 'Hello!', isSent: true },
-    { id: 10, text: 'Hi!', isSent: false },
-    { id: 11, text: 'How are you?', isSent: true },
-    { id: 12, text: 'I\'m good, thanks!', isSent: false },
-    { id: 13, text: 'Hello!', isSent: true },
-    { id: 14, text: 'Hi!', isSent: false },
-    { id: 15, text: 'How are you?', isSent: true },
-    { id: 16, text: 'I\'m good, thanks!', isSent: false },
-    { id: 17, text: 'Hello!', isSent: true },
-    { id: 18, text: 'Hi!', isSent: false },
-    { id: 19, text: 'How are you?', isSent: true },
-    { id: 20, text: 'I\'m good, thanks!', isSent: false },
-    { id: 22, text: 'Hello!', isSent: true },
-    { id: 23, text: 'Hi!', isSent: false },
-    { id: 24, text: 'How are you?', isSent: true },
-    { id: 25, text: 'I\'m good, thanks!', isSent: false },
-]);
 
 // 组件渲染完成时调用
 onMounted(() => {
     updateWindowSize()
     window.addEventListener('resize', updateWindowSize);
-    nextTick(() => {
-        scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight)
-    });
+    setScrollTop()
+    useChatStore().setScroll(true)
 });
 
 // 组件实例被卸载之后调用
@@ -95,25 +108,74 @@ onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
 
+// 向头像数组中添加新的项
+const addAvatarItem = (id: number, url: string) => {
+    avatarArray.push({ id: id, url: url });
+};
+
+// 根据ID获取头像URL
+const getAvatarUrl = (id: number) => {
+    const avatar = avatarArray.find(item => item.id === id);
+    if (avatar?.url !== '') {
+        return avatar?.url
+    } else {
+        Preview(id).then(resp => {
+            const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+            const imageUrl = URL.createObjectURL(blob);
+            addAvatarItem(id, imageUrl)
+        })
+    }
+    return avatar ? avatar.url : '';
+};
+
 // 换行操作
 const sendWithNewLine = () => {
     sendContent.value += '\n'
 }
 
+// 获取消息列表
+const List = async () => {
+    const { data: res } = await MessageList(queryInfo)
+    if (res.code === 200) {
+        queryInfo.page = res.data.page;
+        queryInfo.total = res.data.total;
+        queryInfo.pageNum = res.data.pageNum;
+        queryInfo.pageSize = res.data.pageSize;
+        if (Array.isArray(res.data.list) && res.data.list.length > 0) {
+            res.data.list.forEach((item: Message) => {
+                if (item.photoId !== 0) {
+                    const url = getAvatarUrl(item.photoId)
+                    item.photo = url ? url : ''
+                }
+                item.createdAt = formatDate(item.createdAt, 2)
+            });
+            messages.data = res.data.list;
+        } else {
+            messages.data = []
+        }
+    }
+}
+
 // 发送消息
 const sendMessage = async () => {
     if (sendContent.value.trim() !== '') {
-        const chatroom = useChatStore().getSelectedChatroom
-        if (Object.keys(chatroom).length !== 0) {
-
-            const chatroom: any = useChatStore().getSelectedChatroom
-            const { data: res } = await SendMessage({ chatroomId: chatroom.id, content: sendContent.value })
+        const chatroomId = useChatStore().getSelectedChatroomId
+        if (chatroomId !== 0) {
+            const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
             if (res.code === 200) {
-                messages.push({ id: messages.length + 1, text: sendContent.value, isSent: true });
-                sendContent.value = '';
-                nextTick(() => {
-                    scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight)
+                const url = getAvatarUrl(res.data.photoId)
+                messages.data.push({
+                    id: res.data.id,
+                    isMe: res.data.isMe,
+                    senderId: res.data.senderId,
+                    receiverId: res.data.receiverId,
+                    photoId: res.data.photoId,
+                    photo: url ? url : '',
+                    content: res.data.content,
+                    createdAt: formatDate(res.data.createdAt, 2),
                 });
+                sendContent.value = '';
+                setScrollTop()
             } else {
                 ElMessage.error(res.message)
             }
@@ -129,9 +191,46 @@ const updateWindowSize = () => {
 };
 
 // 监听选中的聊天室
-watch(() => useChatStore().getSelectedChatroom, (newValue, oldValue) => {
-    console.log(newValue, oldValue)
+watch(() => useChatStore().getSelectedChatroomId, (newValue, oldValue) => {
+    useChatStore().setScroll(false)
+    // 请求后端获取消息列表
+    queryInfo.chatroomId = useChatStore().getSelectedChatroomId
+    List()
+    setScrollTop()
+    useChatStore().setScroll(true)
 })
+
+// 监听滚动条是否滚到顶部
+const loadListData = debounce(async (enter: any) => {
+    if (!useChatStore().getScrollState) return;
+
+    if (enter.scrollTop <= 200) {
+        queryInfo.page = queryInfo.page + 1
+        const { data: res } = await MessageList(queryInfo)
+        if (res.code === 200) {
+            if (Array.isArray(res.data.list) && res.data.list.length > 0) {
+                res.data.list.forEach((item: Message) => {
+                    if (item.photoId !== 0) {
+                        const url = getAvatarUrl(item.photoId)
+                        item.photo = url ? url : ''
+                    }
+                    item.createdAt = formatDate(item.createdAt, 2)
+                });
+                messages.data = messages.data.concat(res.data.list)
+            }
+        }
+    }
+}, 300);
+
+
+// 将滚动条设置到底部
+const setScrollTop = () => {
+    nextTick(() => {
+        setTimeout(() => {
+            scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight);
+        }, 100);
+    });
+}
 </script>
 
 <style lang="scss" scoped></style>

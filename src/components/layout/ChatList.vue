@@ -16,13 +16,14 @@
         <!-- 聊天列表 -->
         <el-scrollbar ref="scrollContainer" class="scroll-container select-none" :style="{ height: chatListHeight + 'px' }"
             @scroll="handleScroll">
-            <div v-if="messages.data.length > 0" v-for="message in messages.data" :key="message.id"
+            <div v-if="messageList.data.length > 0" v-for="message in messageList.data" :key="message.id"
                 @contextmenu="showContextMenu($event, message)">
                 <div class="flex items-center py-1 px-2 hover:bg-gray-200 focus:outline-none"
-                    @click="showSelectItem(message)" :class="selectId === message.id ? 'bg-gray-200' : ''">
+                    @click="showSelectItem(message)"
+                    :class="useChatStore().getSelectedChatroomId === message.id ? 'bg-gray-200' : ''">
                     <div class="w-10 h-10">
                         <el-avatar
-                            :src="message.photoId === null ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
+                            :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                     </div>
                     <div class="w-full m-1 select-none">
                         <div class="flex justify-between items-center">
@@ -32,7 +33,7 @@
                             <div class="text-xs text-gray-400 font-medium whitespace-nowrap">{{ message.createdAt }}</div>
                         </div>
                         <div>
-                            <div class="text-sm text-gray-500 font-medium line-clamp">{{ message.newest || '　' }}</div>
+                            <div class="text-xs text-gray-500 font-medium line-clamp">{{ message.newest || '　' }}</div>
                         </div>
                     </div>
                 </div>
@@ -132,15 +133,15 @@ import { debounce } from 'lodash'
 const aiStore = useAiStore()
 // 列表对象
 const queryInfo = reactive({
-    //搜索关键字
+    // 搜索关键字
     keywords: '',
-    //当前页码
+    // 当前页码
     page: 1,
     // 总条数
     total: 0,
     // 总页数
     pageNum: 0,
-    //每页显示多少条数据
+    // 每页显示多少条数据
     pageSize: 25,
     // Ai类型
     aiType: aiStore.aiType
@@ -148,14 +149,14 @@ const queryInfo = reactive({
 // 定义messages的类型
 type Message = {
     id: number;
-    photoId: number | null;
+    photoId: number;
     photo: string,
     name: string;
     createdAt: string;
     newest: string;
 };
 // 列表数据
-const messages = reactive<{ data: Message[] }>({ data: [] })
+const messageList = reactive<{ data: Message[] }>({ data: [] })
 // 聊天列表自适应高度
 const chatListHeight = ref<number>(0);
 // 右键菜单的显示与隐藏状态
@@ -165,7 +166,7 @@ const contextMenuPosition = ref({ left: 0, top: 0 });
 // 用于存储 message 的值
 const selectedMessage = reactive<Message>({
     id: 0,
-    photoId: null,
+    photoId: 0,
     photo: '',
     name: '',
     createdAt: '',
@@ -179,8 +180,6 @@ const isAdd = ref(false);
 const addFrom = reactive({ addChatroomName: '' })
 // 删除对话框状态
 const isDelete = ref(false);
-// 列表选中状态的ID
-const selectId = ref(0)
 // 新增表单引用
 const addFormRef = ref<FormInstance>()
 // 重命名表单引用
@@ -346,7 +345,7 @@ const List = async () => {
 
         if (Array.isArray(res.data.list) && res.data.list.length > 0) {
             res.data.list.forEach((item: Message) => {
-                if (item.photoId !== null) {
+                if (item.photoId !== 0) {
                     Preview(item.photoId).then(resp => {
                         const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
                         const imageUrl = URL.createObjectURL(blob);
@@ -356,9 +355,9 @@ const List = async () => {
                 }
                 item.createdAt = formatDate(item.createdAt, 1)
             });
-            messages.data = res.data.list;
+            messageList.data = res.data.list;
         } else {
-            messages.data = []
+            messageList.data = []
         }
     }
 
@@ -392,8 +391,9 @@ const addCancel = () => {
 
 // 列表鼠标点击选中聊天室操作
 const showSelectItem = (chatroom: Message) => {
-    selectId.value = chatroom.id
-    useChatStore().selectChatroom(chatroom)
+    useChatStore().setSelectChatroomId(chatroom.id)
+    useChatStore().setSelectChatroomName(chatroom.name)
+    useChatStore().setScroll(false)
 }
 
 // 监听搜索框防抖
@@ -433,7 +433,7 @@ const loadListData = async () => {
                     item.createdAt = formatDate(item.createdAt, 1)
                 });
 
-                messages.data = messages.data.concat(res.data.list)
+                messageList.data = messageList.data.concat(res.data.list)
             }
         }
     }

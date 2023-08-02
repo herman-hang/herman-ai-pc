@@ -55,15 +55,22 @@
 
         </div>
         <div class="ml-6 text-lg font-medium focus:outline-none cursor-pointer select-none">
-            <span>当前聊天名称</span>
+            <span v-if="name === ''">当前聊天名称</span>
+            <span v-else>{{ name }}</span>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
+import { useChatStore } from '@/stores/chat';
+// 是否窗口最大化
 const isMax = ref<boolean>(false)
+// 聊天名称
+const name = ref('')
+// electron主进程ipcRenderer对象
 let ipcRenderer: any = null
+// 是否electron环境
 const isElectron = navigator.userAgent.toLowerCase().indexOf('electron/') > -1;
 
 // 在 Electron 环境中加载
@@ -116,6 +123,10 @@ const isMaximized = () => {
     }
 }
 
+// 监听聊天室名称
+watch(() => useChatStore().getSelectedChatroomName, (newValue, oldValue) => {
+    name.value = newValue
+})
 </script>
 
 <style lang="scss" scoped></style>
