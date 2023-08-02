@@ -1,7 +1,7 @@
 <template>
     <div class="flex flex-col" :style="{ height: chatContentHeight + 'px' }">
         <!-- 内容区 -->
-        <el-scrollbar class="px-4 py-2" ref="scrollbarRef">
+        <el-scrollbar class="px-4" ref="scrollbarRef">
             <div ref="innerRef">
                 <div v-for="message in messages" :key="message.id" class="mb-4" ref="child">
                     <div class="flex justify-center text-xs text-gray-400">
@@ -30,7 +30,7 @@
         <!-- 发送内容输入框 -->
         <div class="flex m-2 justify-center items-center">
             <el-input resize="none" :autosize="{ minRows: 2, maxRows: 6 }" v-model="sendContent" type="textarea"
-                placeholder="请教一个问题~" />
+                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter.native.prevent="sendMessage" />
             <div class="px-1">
                 <el-button color="#626aef" :icon="Promotion" circle @click="sendMessage" />
             </div>
@@ -39,16 +39,21 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, reactive, nextTick } from "vue"
+import { ref, onMounted, onUnmounted, reactive, nextTick, watch } from "vue"
 import { Promotion } from '@element-plus/icons-vue'
-import { ElScrollbar as ElScrollbarType } from 'element-plus';
-
+import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
+import { useChatStore } from '@/stores/chat';
+import { SendMessage } from '@/api/home'
+// 内容区引用
 const innerRef = ref<HTMLDivElement>()
+// 滚动条引用
 const scrollbarRef = ref<InstanceType<typeof ElScrollbarType>>()
-
+// 发送内容
 const sendContent = ref<string>('')
+// 自适应内容区高度
 const chatContentHeight = ref<number>(0)
 
+// 内容列表
 const messages = reactive([
     { id: 1, text: 'Hello!', isSent: true },
     { id: 2, text: 'Hi!', isSent: false },
@@ -76,6 +81,7 @@ const messages = reactive([
     { id: 25, text: 'I\'m good, thanks!', isSent: false },
 ]);
 
+// 组件渲染完成时调用
 onMounted(() => {
     updateWindowSize()
     window.addEventListener('resize', updateWindowSize);
@@ -84,18 +90,36 @@ onMounted(() => {
     });
 });
 
+// 组件实例被卸载之后调用
 onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
 
+// 换行操作
+const sendWithNewLine = () => {
+    sendContent.value += '\n'
+}
+
 // 发送消息
-const sendMessage = () => {
+const sendMessage = async () => {
     if (sendContent.value.trim() !== '') {
-        messages.push({ id: messages.length + 1, text: sendContent.value, isSent: true });
-        sendContent.value = '';
-        nextTick(() => {
-            scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight)
-        });
+        const chatroom = useChatStore().getSelectedChatroom
+        if (Object.keys(chatroom).length !== 0) {
+
+            const chatroom: any = useChatStore().getSelectedChatroom
+            const { data: res } = await SendMessage({ chatroomId: chatroom.id, content: sendContent.value })
+            if (res.code === 200) {
+                messages.push({ id: messages.length + 1, text: sendContent.value, isSent: true });
+                sendContent.value = '';
+                nextTick(() => {
+                    scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight)
+                });
+            } else {
+                ElMessage.error(res.message)
+            }
+        } else {
+            ElMessage.error("请选中列表聊天再发送消息")
+        }
     }
 }
 
@@ -104,6 +128,10 @@ const updateWindowSize = () => {
     chatContentHeight.value = window.innerHeight - 56;
 };
 
+// 监听选中的聊天室
+watch(() => useChatStore().getSelectedChatroom, (newValue, oldValue) => {
+    console.log(newValue, oldValue)
+})
 </script>
 
 <style lang="scss" scoped></style>

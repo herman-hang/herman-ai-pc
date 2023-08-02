@@ -10,7 +10,7 @@
             <el-tooltip content="GPT" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(1)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 1" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="useAiStore().getAiType === 1" /></el-icon>
                     <el-icon size="25" color="white">
                         <svg viewBox="0 0 41 41" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.5">
                             <path
@@ -25,7 +25,7 @@
             <el-tooltip content="绘图" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(2)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 2" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="useAiStore().getAiType === 2" /></el-icon>
                     <el-icon size="25" color="white">
                         <svg t="1690101903394" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg"
                             p-id="1778" data-spm-anchor-id="a313x.7781069.0.i3">
@@ -42,7 +42,7 @@
             <el-tooltip content="语音合成" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(3)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 3" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="useAiStore().getAiType === 3" /></el-icon>
                     <el-icon size="25" color="white">
                         <el-icon><i-ep-Mic /></el-icon>
                     </el-icon>
@@ -53,7 +53,7 @@
             <el-tooltip content="文档" placement="right" effect="dark">
                 <div class="flex items-center mt-4 text-slate-100 focus:outline-none cursor-pointer select-none"
                     @click="changeShow(4)">
-                    <el-icon size="12"><i-ep-CaretRight v-if="aiStore.aiType === 4" /></el-icon>
+                    <el-icon size="12"><i-ep-CaretRight v-if="useAiStore().getAiType === 4" /></el-icon>
                     <el-icon size="25" color="white">
                         <el-icon><i-ep-Document /></el-icon>
                     </el-icon>
@@ -73,13 +73,13 @@
             </div>
             <el-form label-width="70px">
                 <el-form-item label="ID">
-                    <el-input disabled v-model="userInfo.data.id" />
+                    <el-input disabled v-model="userInfo.id" />
                 </el-form-item>
                 <el-form-item label="手机号码">
-                    <el-input disabled v-model="userInfo.data.phone" />
+                    <el-input disabled v-model="userInfo.phone" />
                 </el-form-item>
                 <el-form-item label="昵称">
-                    <el-input v-model="userInfo.data.nickname" />
+                    <el-input v-model="userInfo.nickname" />
                 </el-form-item>
             </el-form>
             <template #footer>
@@ -106,41 +106,38 @@ const isUserInfoDialog = ref(false)
 const photo = ref('')
 const uploadUrl = import.meta.env.VITE_BASE_URL + 'pc/files/uploads'
 const headers = reactive({ data: { Authorization: localStorage.getItem('Authorization') } })
-
+// 个人信息
 const userInfo = reactive({
-    data: {
-        'id': 0,
-        'phone': '',
-        'nickname': '',
-        'photoId': 0
-    }
+    'id': 0,
+    'phone': '',
+    'nickname': '',
+    'photoId': 0
 })
-// 登录状态对话框监听对象
-const authStore = useAuthStore();
-// AI类型状态监听
-const aiStore = useAiStore()
+
 onMounted(() => {
     getUserInfo()
 })
 
 // 获取用户信息
-const getUserInfo = () => {
+const getUserInfo = async () => {
     const token = localStorage.getItem('Authorization')
     // 登录状态监听对象
     if (!token) {
         return;
     }
-    UserInfo().then(res => {
-        if (res.data.code === 200) {
-            userInfo.data = res.data.data
-            // 预览头像
-            if (res.data.data.photoId !== 0) {
-                previewImage(res.data.data.photoId)
-            }
-        } else {
-            ElMessage.error(res.data.message)
+    const { data: res } = await UserInfo()
+    if (res.code === 200) {
+        userInfo.id = res.data.id
+        userInfo.nickname = res.data.nickname
+        userInfo.phone = res.data.phone
+        userInfo.photoId = res.data.photoId
+        // 预览头像
+        if (res.data.photoId !== 0) {
+            previewImage(res.data.photoId)
         }
-    })
+    } else {
+        ElMessage.error(res.message)
+    }
 }
 
 // 预览图片
@@ -154,7 +151,7 @@ const previewImage = (photoId: number) => {
 
 // 选中AI产品
 const changeShow = (index: number) => {
-    aiStore.aiType = index
+    useAiStore().setAiType(index)
 }
 
 // 个人信息对话框取消操作
@@ -163,15 +160,14 @@ const userInfoCancel = () => {
 }
 
 // 个人信息对话框确定操作
-const userInfoConfirm = () => {
-    ModifyUser({ photoId: userInfo.data.photoId, nickname: userInfo.data.nickname }).then(res => {
-        if (res.data.code === 200) {
-            isUserInfoDialog.value = false
-            ElMessage.success(res.data.message)
-        } else {
-            ElMessage.error(res.data.message)
-        }
-    })
+const userInfoConfirm = async () => {
+    const { data: res } = await ModifyUser({ photoId: userInfo.photoId, nickname: userInfo.nickname })
+    if (res.code === 200) {
+        isUserInfoDialog.value = false
+        ElMessage.success(res.message)
+    } else {
+        ElMessage.error(res.message)
+    }
 }
 
 // 打开个人信息对话框
@@ -186,7 +182,7 @@ const openUserInfoDialog = () => {
 // 上传头像前钩子函数
 const beforeAvatarUpload = (file: File) => {
     const extension = file.name.split('.').pop()?.toLowerCase();
-    if (extension !== undefined && !['jpg', 'jpeg', 'png', 'gif'].includes(extension)) {
+    if (extension !== undefined && !['jpg', 'jpeg', 'png'].includes(extension)) {
         ElMessage.error('不支持该格式头像')
         return false
     }
@@ -200,7 +196,8 @@ const beforeAvatarUpload = (file: File) => {
         ElMessage.error('头像大小不能超过10MB')
         return false
     }
-    headers.data = { Authorization: localStorage.getItem('Authorization') }
+    headers.data.Authorization = localStorage.getItem('Authorization')
+
     return true
 };
 
@@ -210,14 +207,14 @@ const handleAvatarSuccess = (response: any) => {
         ElMessage.success(response.message)
         // 预览头像
         previewImage(response.data[0].id)
-        userInfo.data.photoId = response.data[0].id
+        userInfo.photoId = response.data[0].id
     } else {
         ElMessage.error(response!.message)
     }
 };
 
 // 监听登录状态
-watch(() => authStore.loginDialog, (newValue, oldValue) => {
+watch(() => useAuthStore().getLoginDialogState, (newValue, oldValue) => {
     if (oldValue) {
         getUserInfo()
     }

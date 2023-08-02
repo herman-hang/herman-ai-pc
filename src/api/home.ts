@@ -26,3 +26,5 @@ export const ChatroomList = (data: object) => get({ url: '/pc/chat/rooms', data:
 export const DeleteChatroom = (data: object) => deleted({ url: '/pc/chat/rooms', data: data })
 // 修改聊天室
 export const ModifyChatroom = (data: object) => put({ url: '/pc/chat/rooms', data: data })
+// 发送消息
+export const SendMessage = (data: object) => post({ url: '/pc/chat/send/messages', data: data })

@@ -7,11 +7,13 @@ export const useAuthStore = defineStore({
     loginDialog: false,
   }),
   actions: {
-    showLoginDialog() {
-      this.loginDialog = true;
-    },
-    hideLoginDialog() {
-      this.loginDialog = false;
-    },
+    setLoginDialog(state: boolean) {
+      this.loginDialog = state
+    }
   },
+  getters: {
+    getLoginDialogState(): boolean {
+      return this.loginDialog;
+    },
+  }
 });

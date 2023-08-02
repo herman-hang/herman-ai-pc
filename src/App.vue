@@ -3,8 +3,8 @@
   <RouterView />
 
   <!-- 登录对话框 -->
-  <el-dialog v-model="authStore.loginDialog" center align-center :before-close="beforeCloseDialog" :show-close="false"
-    width="45%">
+  <el-dialog v-model="useAuthStore().getLoginDialogState" center align-center :before-close="beforeCloseDialog"
+    :show-close="false" width="45%">
     <div class="flex justify-center">
       <span class="text-lg mb-3 font-semibold">用户登录</span>
     </div>
@@ -69,13 +69,11 @@ const countDown = ref(0);
 const buttonText = ref('获取验证码');
 // 点击登录按钮加载状态
 const isLogining = ref(false);
-// 登录状态对话框监听对象
-const authStore = useAuthStore();
 
 onMounted(() => {
   const token = localStorage.getItem('Authorization')
   if (!token) {
-    authStore.loginDialog = true
+    useAuthStore().setLoginDialog(true)
   }
 })
 
@@ -93,21 +91,20 @@ const getCode = (formEl: FormInstance | undefined) => {
 // 登录操作
 const login = (formEl: FormInstance | undefined) => {
   if (!formEl) return
-  formEl.validate((valid) => {
+  formEl.validate(async (valid) => {
     if (valid) {
       // 开启登录按钮加载状态
       isLogining.value = true;
-      Login(loginForm).then(res => {
-        isLogining.value = false;
-        if (res.data.code === 200) {
-          authStore.loginDialog = false
-          // 缓存token
-          localStorage.setItem('Authorization', res.data.data)
-          ElMessage.success(res.data.message)
-        } else {
-          ElMessage.error(res.data.message)
-        }
-      })
+      const { data: res } = await Login(loginForm)
+      isLogining.value = false;
+      if (res.code === 200) {
+        useAuthStore().setLoginDialog(false)
+        // 缓存token
+        localStorage.setItem('Authorization', res.data)
+        ElMessage.success(res.message)
+      } else {
+        ElMessage.error(res.message)
+      }
     } else {
       return false
     }
@@ -118,28 +115,24 @@ const login = (formEl: FormInstance | undefined) => {
 const beforeCloseDialog = () => { }
 
 // 行为验证码校验成功回调
-const checkCaptchaSuccess = (res: any) => {
+const checkCaptchaSuccess = async (call: any) => {
   if (countDown.value > 0) return;
-  loginForm.captchaVerification = res.data.captchaVerification
-  loginForm.pointJson = res.data.pointJson
-  loginForm.token = res.data.token
-  SendCode(loginForm).then(res => {
-    if (res.data.code !== 200) {
-      ElMessage({
-        type: 'error',
-        message: res.data.message,
-      })
-    } else {
-      countDown.value = 60;
-      const timer = setInterval(() => {
-        if (countDown.value > 0) {
-          countDown.value -= 1;
-        } else {
-          clearInterval(timer);
-        }
-      }, 1000);
-    }
-  })
+  loginForm.captchaVerification = call.data.captchaVerification
+  loginForm.pointJson = call.data.pointJson
+  loginForm.token = call.data.token
+  const { data: res } = await SendCode(loginForm)
+  if (res.code !== 200) {
+    ElMessage.error(res.message)
+  } else {
+    countDown.value = 60;
+    const timer = setInterval(() => {
+      if (countDown.value > 0) {
+        countDown.value -= 1;
+      } else {
+        clearInterval(timer);
+      }
+    }, 1000);
+  }
 }
 
 </script>

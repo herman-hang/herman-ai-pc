@@ -14,25 +14,25 @@
         </div>
 
         <!-- 聊天列表 -->
-        <el-scrollbar class="select-none" :style="{ height: chatListHeight + 'px' }">
+        <el-scrollbar ref="scrollContainer" class="scroll-container select-none" :style="{ height: chatListHeight + 'px' }"
+            @scroll="handleScroll">
             <div v-if="messages.data.length > 0" v-for="message in messages.data" :key="message.id"
                 @contextmenu="showContextMenu($event, message)">
                 <div class="flex items-center py-1 px-2 hover:bg-gray-200 focus:outline-none"
-                    @click="showSelectItem(message.id)" :class="selectId === message.id ? 'bg-gray-200' : ''">
+                    @click="showSelectItem(message)" :class="selectId === message.id ? 'bg-gray-200' : ''">
                     <div class="w-10 h-10">
                         <el-avatar
                             :src="message.photoId === null ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                     </div>
                     <div class="w-full m-1 select-none">
                         <div class="flex justify-between items-center">
-                            <div class="text-base font-medium line-clamp">
+                            <div class="text-sm font-medium line-clamp">
                                 <span>{{ message.name }}</span>
                             </div>
-                            <div class="text-sm text-gray-400 font-medium">{{ message.createdAt }}
-                            </div>
+                            <div class="text-xs text-gray-400 font-medium whitespace-nowrap">{{ message.createdAt }}</div>
                         </div>
                         <div>
-                            <div class="text-sm text-gray-500 font-medium line-clamp">{{ message.newest }}</div>
+                            <div class="text-sm text-gray-500 font-medium line-clamp">{{ message.newest || '　' }}</div>
                         </div>
                     </div>
                 </div>
@@ -40,34 +40,35 @@
             <div v-else class="flex justify-center mt-2">
                 <span class="text-gray-400 font-medium text-sm">无数据~</span>
             </div>
+
         </el-scrollbar>
 
-
-        <!-- 右键菜单 -->
-        <transition name="fade">
-            <div v-if="isContextMenuVisible" class="absolute right-click-menu"
-                :style="{ left: contextMenuPosition.left + 'px', top: contextMenuPosition.top + 'px' }">
-                <div class="bg-white border rounded">
-                    <div class="py-1">
-                        <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="renameAction()">
-                            重命名
-                        </div>
-                        <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="deleteAction()">
-                            删除
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </transition>
     </div>
 
 
+    <!-- 右键菜单 -->
+    <transition name="fade">
+        <div v-if="isContextMenuVisible" class="absolute right-click-menu"
+            :style="{ left: contextMenuPosition.left + 'px', top: contextMenuPosition.top + 'px' }">
+            <div class="bg-white border rounded">
+                <div class="py-1">
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="renameAction()">
+                        重命名
+                    </div>
+                    <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" @click="deleteAction()">
+                        删除
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
     <!-- 重命名对话框 -->
     <el-dialog v-model="isRename" title="重命名" width="45%">
-        <el-form :model="selectedMessage" ref="renameFormRef" :rules="renameFormRules"
-            @keyup.enter="renameConfirm(renameFormRef)">
+        <el-form :model="selectedMessage" ref="renameFormRef" :rules="renameFormRules">
             <el-form-item prop="name">
-                <el-input v-model="selectedMessage.name" placeholder="请输入名称"/>
+                <el-input v-model="selectedMessage.name" placeholder="请输入名称"
+                    @keydown.enter.native.prevent="renameConfirm(renameFormRef)" />
             </el-form-item>
         </el-form>
         <template #footer>
@@ -82,9 +83,10 @@
 
     <!-- 新增聊天室 -->
     <el-dialog v-model="isAdd" title="添加" width="45%">
-        <el-form :model="addFrom" ref="addFormRef" :rules="addFormRules" @keyup.enter="addConfirm(addFormRef)">
+        <el-form :model="addFrom" ref="addFormRef" :rules="addFormRules">
             <el-form-item prop="addChatroomName">
-                <el-input v-model="addFrom.addChatroomName" placeholder="请输入名称" />
+                <el-input v-model="addFrom.addChatroomName" placeholder="请输入名称"
+                    @keydown.enter.native.prevent="addConfirm(addFormRef)" />
             </el-form-item>
         </el-form>
         <template #footer>
@@ -121,14 +123,13 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { useAiStore } from '@/stores/ai'
 import { useAuthStore } from '@/stores/auth';
+import { useChatStore } from '@/stores/chat';
 import { AddChatroom, ChatroomList, Preview, DeleteChatroom, ModifyChatroom } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
 
 // AI类型状态监听
 const aiStore = useAiStore()
-// 登录状态对话框监听对象
-const authStore = useAuthStore();
 // 列表对象
 const queryInfo = reactive({
     //搜索关键字
@@ -196,7 +197,8 @@ const renameFormRules = ref({
         { required: true, message: '请输入名称', trigger: 'blur' },
     ]
 });
-
+// 列表滚动条引用
+const scrollContainer = ref<any>(null);
 // 组件完成渲染后调用
 onMounted(() => {
     updateWindowSize()
@@ -222,7 +224,7 @@ watch(() => aiStore.aiType, (newValue, oldValue) => {
 })
 
 // 监听登录状态
-watch(() => authStore.loginDialog, (newValue, oldValue) => {
+watch(() => useAuthStore().getLoginDialogState, (newValue, oldValue) => {
     if (oldValue) {
         List()
     }
@@ -277,17 +279,16 @@ const renameAction = () => {
 // 重命名对话框确定操作
 const renameConfirm = (formEl: FormInstance | undefined) => {
     if (!formEl) return
-    formEl.validate((valid) => {
+    formEl.validate(async (valid) => {
         if (valid) {
-            ModifyChatroom(selectedMessage).then(res => {
-                if (res.data.code === 200) {
-                    List()
-                    isRename.value = false
-                    ElMessage.success(res.data.message)
-                } else {
-                    ElMessage.error(res.data.message)
-                }
-            })
+            const { data: res } = await ModifyChatroom(selectedMessage)
+            if (res.code === 200) {
+                List()
+                isRename.value = false
+                ElMessage.success(res.message)
+            } else {
+                ElMessage.error(res.message)
+            }
         } else {
             return false
         }
@@ -310,16 +311,15 @@ const deleteAction = () => {
 };
 
 // 删除对话框确定操作
-const deleteConfirm = () => {
-    DeleteChatroom({ id: selectedMessage.id }).then(res => {
-        if (res.data.code === 200) {
-            List()
-            isDelete.value = false
-            ElMessage.success(res.data.message)
-        } else {
-            ElMessage.error(res.data.message)
-        }
-    })
+const deleteConfirm = async () => {
+    const { data: res } = await DeleteChatroom({ id: selectedMessage.id })
+    if (res.code === 200) {
+        List()
+        isDelete.value = false
+        ElMessage.success(res.message)
+    } else {
+        ElMessage.error(res.message)
+    }
 }
 
 // 新增聊天室
@@ -329,57 +329,55 @@ const addAction = () => {
 }
 
 // 获取列表数据
-const List = () => {
+const List = async () => {
     const token = localStorage.getItem('Authorization')
     // 登录状态监听对象
     if (!token) {
         return;
     }
 
-    ChatroomList(queryInfo).then(res => {
-        console.log(res)
-        if (res.data.code === 200) {
-            queryInfo.page = res.data.data.page;
-            queryInfo.total = res.data.data.total;
-            queryInfo.pageNum = res.data.data.pageNum;
-            queryInfo.pageSize = res.data.data.pageSize;
-            queryInfo.aiType = aiStore.aiType;
+    const { data: res } = await ChatroomList(queryInfo)
+    if (res.code === 200) {
+        queryInfo.page = res.data.page;
+        queryInfo.total = res.data.total;
+        queryInfo.pageNum = res.data.pageNum;
+        queryInfo.pageSize = res.data.pageSize;
+        queryInfo.aiType = aiStore.aiType;
 
-            if (Array.isArray(res.data.data.list) && res.data.data.list.length > 0) {
-                res.data.data.list.forEach((item: Message) => {
-                    if (item.photoId !== null) {
-                        Preview(item.photoId).then(resp => {
-                            const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
-                            const imageUrl = URL.createObjectURL(blob);
-                            // 在这里给每个item添加一个键值对
-                            item.photo = imageUrl;
-                        })
-                    }
-                    item.createdAt = formatDate(item.createdAt)
-                });
-                messages.data = res.data.data.list;
-            } else {
-                messages.data = []
-            }
+        if (Array.isArray(res.data.list) && res.data.list.length > 0) {
+            res.data.list.forEach((item: Message) => {
+                if (item.photoId !== null) {
+                    Preview(item.photoId).then(resp => {
+                        const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+                        const imageUrl = URL.createObjectURL(blob);
+                        // 在这里给每个item添加一个键值对
+                        item.photo = imageUrl;
+                    })
+                }
+                item.createdAt = formatDate(item.createdAt, 1)
+            });
+            messages.data = res.data.list;
+        } else {
+            messages.data = []
         }
-    })
+    }
+
 }
 
 // 新增聊天室对话框确定操作
 const addConfirm = (formEl: FormInstance | undefined) => {
     if (!formEl) return
-    formEl.validate((valid) => {
+    formEl.validate(async (valid) => {
         if (valid) {
-            AddChatroom({ aiType: aiStore.aiType, name: addFrom.addChatroomName }).then(res => {
-                if (res.data.code === 200) {
-                    // 刷新列表
-                    List()
-                    isAdd.value = false
-                    ElMessage.success(res.data.message)
-                } else {
-                    ElMessage.error(res.data.message)
-                }
-            })
+            const { data: res } = await AddChatroom({ aiType: aiStore.aiType, name: addFrom.addChatroomName })
+            if (res.code === 200) {
+                // 刷新列表
+                List()
+                isAdd.value = false
+                ElMessage.success(res.message)
+            } else {
+                ElMessage.error(res.message)
+            }
         } else {
             return false
         }
@@ -392,9 +390,10 @@ const addCancel = () => {
     isAdd.value = false
 }
 
-// 列表鼠标点击选中操作
-const showSelectItem = (id: number) => {
-    selectId.value = id
+// 列表鼠标点击选中聊天室操作
+const showSelectItem = (chatroom: Message) => {
+    selectId.value = chatroom.id
+    useChatStore().selectChatroom(chatroom)
 }
 
 // 监听搜索框防抖
@@ -402,6 +401,43 @@ const handleInput = debounce(() => {
     List()
 }, 300);
 
+// 监听滚动条是否滚到底部
+const handleScroll = debounce(() => {
+    loadListData()
+}, 300);
+
+// 监听滚动条是否滚到底部
+const loadListData = async () => {
+    const element = scrollContainer.value.$el.getElementsByClassName('el-scrollbar__wrap')[0];
+    const containerHeight = scrollContainer.value.$el.clientHeight;
+    const scrollHeight = element.scrollHeight;
+    const scrollTop = element.scrollTop;
+    // 计算滚动条距离底部的距离
+    const distanceToBottom = scrollHeight - scrollTop - containerHeight;
+
+    // 距离底部200px时开始请求
+    if (distanceToBottom <= 200) {
+        queryInfo.page = queryInfo.page + 1
+        const { data: res } = await ChatroomList(queryInfo)
+        if (res.code === 200) {
+            if (Array.isArray(res.data.list) && res.data.list.length > 0) {
+                res.data.list.forEach((item: Message) => {
+                    if (item.photoId !== null) {
+                        Preview(item.photoId).then(resp => {
+                            const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+                            const imageUrl = URL.createObjectURL(blob);
+                            // 在这里给每个item添加一个键值对
+                            item.photo = imageUrl;
+                        })
+                    }
+                    item.createdAt = formatDate(item.createdAt, 1)
+                });
+
+                messages.data = messages.data.concat(res.data.list)
+            }
+        }
+    }
+}
 </script>
 
 <style lang="scss" scoped>
