@@ -10,7 +10,7 @@
                     </div>
                     <!-- 发送内容 -->
                     <div v-if="message.isMe" class="flex justify-end items-center">
-                        <div
+                        <div :style="{ maxWidth: chatContentWidth + 'px' }"
                             class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-1 px-2 rounded-lg break-words text-sm">
                             {{ message.content }}</div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
@@ -24,7 +24,8 @@
                             <el-avatar
                                 :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
-                        <div class="bg-gray-200 py-1 px-2 rounded-lg break-words text-sm">{{ message.content }}</div>
+                        <div :style="{ maxWidth: chatContentWidth + 'px' }"
+                            class="bg-gray-200 py-1 px-2 rounded-lg break-words text-sm">{{ message.content }}</div>
                     </div>
                 </div>
                 <div v-else class="flex justify-center items-center mt-2">
@@ -60,6 +61,8 @@ const scrollbarRef = ref<InstanceType<typeof ElScrollbarType>>()
 const sendContent = ref<string>('')
 // 自适应内容区高度
 const chatContentHeight = ref<number>(0)
+// 自适应内容区宽度
+const chatContentWidth = ref<number>(0)
 // 定义messages的类型
 type Message = {
     id: number; // 消息ID
@@ -134,7 +137,7 @@ const sendWithNewLine = () => {
 }
 
 // 获取消息列表
-const List = async () => {
+const list = async () => {
     const { data: res } = await MessageList(queryInfo)
     if (res.code === 200) {
         queryInfo.page = res.data.page;
@@ -175,6 +178,7 @@ const sendMessage = async () => {
                     createdAt: formatDate(res.data.createdAt, 2),
                 });
                 sendContent.value = '';
+                useChatStore().setNewMessageId(res.data.id)
                 setScrollTop()
             } else {
                 ElMessage.error(res.message)
@@ -188,6 +192,9 @@ const sendMessage = async () => {
 // 计算聊天区高度
 const updateWindowSize = () => {
     chatContentHeight.value = window.innerHeight - 56;
+    // 296是菜单栏和聊天列表的宽度
+    chatContentWidth.value = window.innerWidth - (296 + 100)
+    setScrollTop()
 };
 
 // 监听选中的聊天室
@@ -195,7 +202,11 @@ watch(() => useChatStore().getSelectedChatroomId, (newValue, oldValue) => {
     useChatStore().setScroll(false)
     // 请求后端获取消息列表
     queryInfo.chatroomId = useChatStore().getSelectedChatroomId
-    List()
+    queryInfo.page = 1
+    queryInfo.pageNum = 0
+    queryInfo.pageSize = 50
+    queryInfo.total = 0
+    list()
     setScrollTop()
     useChatStore().setScroll(true)
 })

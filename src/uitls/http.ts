@@ -36,10 +36,8 @@ instace.interceptors.response.use((response) => {
 
     // 判断是否过期
     if (response.data.code === 401) {
-        const authStore = useAuthStore();
         localStorage.removeItem('Authorization')
-        // ElMessage.error(response.data.message)
-        authStore.loginDialog = true
+        useAuthStore().setLoginDialog(true)
     }
 
     return response;

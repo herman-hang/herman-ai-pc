@@ -75,6 +75,7 @@ onMounted(() => {
   const token = localStorage.getItem('Authorization')
   if (token === '' || token === null || token === undefined) {
     useAuthStore().setLoginDialog(true)
+    return
   }
 })
 
@@ -100,6 +101,7 @@ const login = (formEl: FormInstance | undefined) => {
       isLogining.value = false;
       if (res.code === 200) {
         useAuthStore().setLoginDialog(false)
+
         // 缓存token
         localStorage.setItem('Authorization', res.data)
         ElMessage.success(res.message)
@@ -135,10 +137,13 @@ const checkCaptchaSuccess = async (call: any) => {
     }, 1000);
   }
 }
+
 // 监听登录状态
 watch(() => useAuthStore().getLoginDialogState, (newValue, oldValue) => {
-  if (oldValue) {
+  if (newValue) {
     loginDialogState.value = true
+  } else {
+    loginDialogState.value = false
   }
 })
 </script>

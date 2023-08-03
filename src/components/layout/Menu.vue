@@ -121,8 +121,8 @@ onMounted(() => {
 // 获取用户信息
 const getUserInfo = async () => {
     const token = localStorage.getItem('Authorization')
-    // 登录状态监听对象
-    if (!token) {
+    if (token === '' || token === null || token === undefined) {
+        useAuthStore().setLoginDialog(true)
         return;
     }
     const { data: res } = await UserInfo()
@@ -172,8 +172,8 @@ const userInfoConfirm = async () => {
 
 // 打开个人信息对话框
 const openUserInfoDialog = () => {
-    const token = localStorage.getItem('Authorization')
     getUserInfo()
+    const token = localStorage.getItem('Authorization')
     if (token) {
         isUserInfoDialog.value = true
     }

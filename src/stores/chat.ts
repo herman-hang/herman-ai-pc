@@ -5,7 +5,8 @@ export const useChatStore = defineStore({
     state: () => ({
         selectedChatroomId: 0,
         selectedChatroomName: '',
-        scroll: false
+        scroll: false,
+        newMessageId: 0,
     }),
     actions: {
         setSelectChatroomId(selectedChatroomId: number) {
@@ -16,6 +17,9 @@ export const useChatStore = defineStore({
         },
         setScroll(state: boolean) {
             this.scroll = state
+        },
+        setNewMessageId(id: number) {
+            this.newMessageId = id
         }
     },
     getters: {
@@ -27,6 +31,9 @@ export const useChatStore = defineStore({
         },
         getScrollState(): boolean {
             return this.scroll
+        },
+        getNewMessageId(): number {
+            return this.newMessageId
         }
     }
 });

@@ -4,7 +4,7 @@
         <div class="flex justify-center items-center h-14 bg-white">
             <div class="flex justify-center items-center">
                 <el-input clearable v-model="queryInfo.keywords" size="small" :prefix-icon="Search" placeholder="搜索"
-                    @change="List" @input="handleInput" @clear="List" />
+                    @change="list" @input="handleInput" @clear="list" />
                 <div class="text-gray-400 hover:text-gray-500" @click="addAction">
                     <el-icon class="m-2" size="18">
                         <i-ep-CirclePlus />
@@ -27,13 +27,15 @@
                     </div>
                     <div class="w-full m-1 select-none">
                         <div class="flex justify-between items-center">
-                            <div class="text-sm font-medium line-clamp">
+                            <div class="text-sm font-medium line-clamp-1">
                                 <span>{{ message.name }}</span>
                             </div>
-                            <div class="text-xs text-gray-400 font-medium whitespace-nowrap">{{ message.createdAt }}</div>
+                            <div class="text-xs text-gray-400 font-medium whitespace-nowrap">{{ message.createdAt }}
+                            </div>
                         </div>
                         <div>
-                            <div class="text-xs text-gray-500 font-medium line-clamp">{{ message.newest || '　' }}</div>
+                            <div class="text-xs text-gray-500 font-medium text-overflow-newest">{{ message.newest || '　' }}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -129,8 +131,6 @@ import { AddChatroom, ChatroomList, Preview, DeleteChatroom, ModifyChatroom } fr
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
 
-// AI类型状态监听
-const aiStore = useAiStore()
 // 列表对象
 const queryInfo = reactive({
     // 搜索关键字
@@ -144,9 +144,9 @@ const queryInfo = reactive({
     // 每页显示多少条数据
     pageSize: 25,
     // Ai类型
-    aiType: aiStore.aiType
+    aiType: useAiStore().getAiType
 })
-// 定义messages的类型
+// 定义messages的类型 
 type Message = {
     id: number;
     photoId: number;
@@ -203,7 +203,7 @@ onMounted(() => {
     updateWindowSize()
     window.addEventListener('resize', updateWindowSize);
     document.addEventListener('click', handleClick);
-    List()
+    list()
 });
 
 // 组件实例被卸载之前调用
@@ -217,17 +217,32 @@ onUnmounted(() => {
 });
 
 // 监听AI类型切换状态
-watch(() => aiStore.aiType, (newValue, oldValue) => {
+watch(() => useAiStore().getAiType, (newValue, oldValue) => {
     queryInfo.aiType = newValue
-    List()
+    initQueryInfo()
+    list()
 })
 
 // 监听登录状态
 watch(() => useAuthStore().getLoginDialogState, (newValue, oldValue) => {
     if (oldValue) {
-        List()
+        list()
     }
 })
+
+// 监听发送消息刷新列表
+watch(() => useChatStore().getNewMessageId, (newValue, oldValue) => {
+    handleInput()
+})
+
+// 初始化查询数据
+const initQueryInfo = () => {
+    queryInfo.keywords = ''
+    queryInfo.page = 1
+    queryInfo.pageNum = 0
+    queryInfo.pageSize = 25
+    queryInfo.total = 0
+}
 
 // 计算聊天列表高度
 const updateWindowSize = () => {
@@ -282,7 +297,7 @@ const renameConfirm = (formEl: FormInstance | undefined) => {
         if (valid) {
             const { data: res } = await ModifyChatroom(selectedMessage)
             if (res.code === 200) {
-                List()
+                list()
                 isRename.value = false
                 ElMessage.success(res.message)
             } else {
@@ -297,7 +312,7 @@ const renameConfirm = (formEl: FormInstance | undefined) => {
 
 // 重命名对话框取消操作
 const renameCancel = () => {
-    List()
+    list()
     isRename.value = false
 }
 
@@ -313,7 +328,7 @@ const deleteAction = () => {
 const deleteConfirm = async () => {
     const { data: res } = await DeleteChatroom({ id: selectedMessage.id })
     if (res.code === 200) {
-        List()
+        list()
         isDelete.value = false
         ElMessage.success(res.message)
     } else {
@@ -328,20 +343,21 @@ const addAction = () => {
 }
 
 // 获取列表数据
-const List = async () => {
+const list = async () => {
     const token = localStorage.getItem('Authorization')
-    // 登录状态监听对象
-    if (!token) {
-        return;
+    if (token === '' || token === null || token === undefined) {
+        useAuthStore().setLoginDialog(true)
+        return
     }
 
+    initQueryInfo()
     const { data: res } = await ChatroomList(queryInfo)
     if (res.code === 200) {
         queryInfo.page = res.data.page;
         queryInfo.total = res.data.total;
         queryInfo.pageNum = res.data.pageNum;
         queryInfo.pageSize = res.data.pageSize;
-        queryInfo.aiType = aiStore.aiType;
+        queryInfo.aiType = useAiStore().getAiType;
 
         if (Array.isArray(res.data.list) && res.data.list.length > 0) {
             res.data.list.forEach((item: Message) => {
@@ -368,10 +384,9 @@ const addConfirm = (formEl: FormInstance | undefined) => {
     if (!formEl) return
     formEl.validate(async (valid) => {
         if (valid) {
-            const { data: res } = await AddChatroom({ aiType: aiStore.aiType, name: addFrom.addChatroomName })
+            const { data: res } = await AddChatroom({ aiType: useAiStore().getAiType, name: addFrom.addChatroomName })
             if (res.code === 200) {
-                // 刷新列表
-                List()
+                list()
                 isAdd.value = false
                 ElMessage.success(res.message)
             } else {
@@ -385,7 +400,7 @@ const addConfirm = (formEl: FormInstance | undefined) => {
 
 // 新增聊天室对话框取消操作
 const addCancel = () => {
-    List()
+    list()
     isAdd.value = false
 }
 
@@ -398,7 +413,7 @@ const showSelectItem = (chatroom: Message) => {
 
 // 监听搜索框防抖
 const handleInput = debounce(() => {
-    List()
+    list()
 }, 300);
 
 // 监听滚动条是否滚到底部
@@ -422,7 +437,7 @@ const loadListData = async () => {
         if (res.code === 200) {
             if (Array.isArray(res.data.list) && res.data.list.length > 0) {
                 res.data.list.forEach((item: Message) => {
-                    if (item.photoId !== null) {
+                    if (item.photoId !== 0) {
                         Preview(item.photoId).then(resp => {
                             const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
                             const imageUrl = URL.createObjectURL(blob);
@@ -441,11 +456,10 @@ const loadListData = async () => {
 </script>
 
 <style lang="scss" scoped>
-.line-clamp {
+.text-overflow-newest {
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
+    width: 170px;
 }
 </style>
