@@ -37,9 +37,10 @@
         <!-- 发送内容输入框 -->
         <div class="flex m-2 justify-center items-center">
             <el-input resize="none" :autosize="{ minRows: 2, maxRows: 6 }" v-model="sendContent" type="textarea"
-                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter.native.prevent="sendMessage" />
+                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine"
+                @keydown.enter.native.prevent="responseStream" />
             <div class="px-1">
-                <el-button color="#626aef" :icon="Promotion" circle @click="sendMessage" />
+                <el-button color="#626aef" :icon="Promotion" circle @click="responseStream" />
             </div>
         </div>
     </div>
@@ -53,6 +54,9 @@ import { useChatStore } from '@/stores/chat';
 import { SendMessage, MessageList, Preview } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
+import { useAuthStore } from '@/stores/auth';
+import { json } from "stream/consumers";
+
 // 内容区引用
 const innerRef = ref<HTMLDivElement>()
 // 滚动条引用
@@ -180,6 +184,7 @@ const sendMessage = async () => {
                 sendContent.value = '';
                 useChatStore().setNewMessageId(res.data.id)
                 setScrollTop()
+
             } else {
                 ElMessage.error(res.message)
             }
@@ -187,6 +192,67 @@ const sendMessage = async () => {
             ElMessage.error("请选中列表聊天再发送消息")
         }
     }
+}
+
+// 流式响应
+const responseStream = () => {
+    const token = localStorage.getItem('Authorization')
+    if (token === '' || token === null || token === undefined) {
+        useAuthStore().setLoginDialog(true)
+        return
+    }
+    const chatroomId = useChatStore().getSelectedChatroomId
+    let sender = {}
+    let receiver = {}
+
+    if (chatroomId !== 0) {
+        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream/?content='
+            + sendContent.value
+            + '&chatroomId=' + chatroomId
+            + '&token=' + token
+        );
+
+        eventSource.addEventListener('message', function (event) {
+            const respomse = JSON.parse(event.data);
+            if (respomse.code === 206) {
+                const url = getAvatarUrl(respomse.data.photoId)
+                if (respomse.data.isMe) {
+                    sender = {
+                        id: respomse.data.id,
+                        isMe: respomse.data.isMe,
+                        senderId: respomse.data.senderId,
+                        receiverId: respomse.data.receiverId,
+                        photoId: respomse.data.photoId,
+                        photo: url ? url : '',
+                        content: respomse.data.content,
+                        createdAt: formatDate(respomse.data.createdAt, 2),
+                    }
+                } else {
+                    receiver = {
+                        id: respomse.data.id,
+                        isMe: respomse.data.isMe,
+                        senderId: respomse.data.senderId,
+                        receiverId: respomse.data.receiverId,
+                        photoId: respomse.data.photoId,
+                        photo: url ? url : '',
+                        content: respomse.data.content,
+                        createdAt: formatDate(respomse.data.createdAt, 2),
+                    }
+                }
+            } else {
+                // 流响应的数据
+
+            }
+            sendContent.value = '';
+            useChatStore().setNewMessageId(respomse.data.id)
+            setScrollTop()
+        });
+
+        eventSource.addEventListener('error', function (event) {
+            eventSource.close()
+        });
+    }
+
 }
 
 // 计算聊天区高度

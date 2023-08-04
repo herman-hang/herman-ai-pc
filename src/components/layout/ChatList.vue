@@ -27,7 +27,7 @@
                     </div>
                     <div class="w-full m-1 select-none">
                         <div class="flex justify-between items-center">
-                            <div class="text-sm font-medium line-clamp-1">
+                            <div class="text-sm font-medium text-overflow-name">
                                 <span>{{ message.name }}</span>
                             </div>
                             <div class="text-xs text-gray-400 font-medium whitespace-nowrap">{{ message.createdAt }}
@@ -461,5 +461,11 @@ const loadListData = async () => {
     overflow: hidden;
     text-overflow: ellipsis;
     width: 170px;
+}
+.text-overflow-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 140px;
 }
 </style>
