@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, Tray } from 'electron'
+import { app, BrowserWindow, Menu, ipcMain, Tray, globalShortcut } from 'electron'
 import path from 'path'
 
 let tray = null  // 在外面创建tray变量，防止被自动删除，导致图标自动消失
@@ -108,3 +108,22 @@ app.whenReady().then(async () => {
         win.loadFile('index.html')
     }
 })
+
+app.on('ready', () => {
+    // 注册全局快捷键
+    globalShortcut.register('Ctrl+Alt+S', () => {
+        const win = BrowserWindow.getAllWindows()[0];
+
+        if (win.isMinimized()) {
+            win.restore();
+            win.focus();
+        } else {
+            win.minimize();
+        }
+    });
+});
+
+app.on('will-quit', () => {
+    // 注销全局快捷键
+    globalShortcut.unregister('Ctrl+Alt+S');
+});

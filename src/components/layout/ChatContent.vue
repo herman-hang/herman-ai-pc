@@ -3,7 +3,7 @@
         <!-- 内容区 -->
         <el-scrollbar class="px-4 scroll-container" ref="scrollbarRef" @scroll="loadListData">
             <div ref="innerRef">
-                <div v-if="messages.data.length > 0" v-for="message in messages.data" :key="message.id" class="mb-4"
+                <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4"
                     ref="child">
                     <div class="flex justify-center text-xs text-gray-400">
                         {{ message.createdAt }}
@@ -11,8 +11,9 @@
                     <!-- 发送内容 -->
                     <div v-if="message.isMe" class="flex justify-end items-center">
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
-                            class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-1 px-2 rounded-lg break-words text-sm">
-                            {{ message.content }}</div>
+                            class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-2 px-2 rounded-lg break-words text-base">
+                            <div v-html="message.content"></div>
+                        </div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
                             <el-avatar
                                 :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
@@ -25,7 +26,13 @@
                                 :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
-                            class="bg-gray-200 py-1 px-2 rounded-lg break-words text-sm">{{ message.content }}</div>
+                            class="bg-gray-200 rounded-lg break-words text-base">
+
+
+                            <div class="flex flex-col px-3 py-3" v-html="renderMarkdown(message.content)"></div>
+
+
+                        </div>
                     </div>
                 </div>
                 <div v-else class="flex justify-center items-center mt-2">
@@ -37,25 +44,26 @@
         <!-- 发送内容输入框 -->
         <div class="flex m-2 justify-center items-center">
             <el-input resize="none" :autosize="{ minRows: 2, maxRows: 6 }" v-model="sendContent" type="textarea"
-                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine"
-                @keydown.enter.native.prevent="responseStream" />
+                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter="handleKeyDown" />
             <div class="px-1">
-                <el-button color="#626aef" :icon="Promotion" circle @click="responseStream" />
+                <el-button color="#626aef" :icon="Promotion" circle @click="sendMessage" />
             </div>
         </div>
     </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, reactive, nextTick, watch } from "vue"
+import { ref, onMounted, onUnmounted, reactive, nextTick, watch, computed } from "vue"
 import { Promotion } from '@element-plus/icons-vue'
 import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
-import { SendMessage, MessageList, Preview } from '@/api/home'
+import { MessageList, Preview, SendMessage } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
 import { useAuthStore } from '@/stores/auth';
-import { json } from "stream/consumers";
+import { marked } from 'marked';
+import hljs from 'highlight.js'
+import "highlight.js/styles/atom-one-dark.css";
 
 // 内容区引用
 const innerRef = ref<HTMLDivElement>()
@@ -101,19 +109,49 @@ type Avatar = {
 // 定义响应式的头像数组对象
 const avatarArray = reactive<Avatar[]>([]);
 
+// 修改原数组
+const reversedMessages = computed(() =>
+    messages.data.slice().reverse()
+);
 
 // 组件渲染完成时调用
 onMounted(() => {
     updateWindowSize()
     window.addEventListener('resize', updateWindowSize);
-    setScrollTop()
     useChatStore().setScroll(true)
+    setScrollBottom()
 });
 
 // 组件实例被卸载之后调用
 onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
+
+// 代码块渲染
+const renderMarkdown = (value: string) => {
+    marked.setOptions({
+        renderer: new marked.Renderer(),
+        highlight: function (code: any, language: any) {
+            const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
+            const highlightedCode = hljs.highlight(validLanguage, code).value;
+            const lines = highlightedCode.split('\n').map((line, index) => {
+                return `<span class="line" data-line="${index + 1}">${line}</span>`;
+            });
+
+            return `${lines.join('\n')}`;
+        },
+        gfm: true, //默认为true。 允许 Git Hub标准的markdown.
+        breaks: true, //默认为false。 允许回车换行。该选项要求 gfm 为true。
+        pedantic: false, //默认为false。 尽可能地兼容 markdown.pl的晦涩部分。不纠正原始模型任何的不良行为和错误。
+        smartLists: true,
+        smartypants: true, //使用更为时髦的标点，比如在引用语法中加入破折号。
+        langPrefix: "hljs language-"
+    });
+
+
+    return marked.parse(value);
+};
+
 
 // 向头像数组中添加新的项
 const addAvatarItem = (id: number, url: string) => {
@@ -140,6 +178,15 @@ const sendWithNewLine = () => {
     sendContent.value += '\n'
 }
 
+// 键盘回车按键触发事件
+const handleKeyDown = (event: any) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        // 发送消息的操作
+        sendMessage();
+        event.preventDefault(); // 阻止默认的换行行为
+    }
+}
+
 // 获取消息列表
 const list = async () => {
     const { data: res } = await MessageList(queryInfo)
@@ -163,89 +210,59 @@ const list = async () => {
     }
 }
 
-// 发送消息
-const sendMessage = async () => {
-    if (sendContent.value.trim() !== '') {
-        const chatroomId = useChatStore().getSelectedChatroomId
-        if (chatroomId !== 0) {
-            const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
-            if (res.code === 200) {
-                const url = getAvatarUrl(res.data.photoId)
-                messages.data.push({
-                    id: res.data.id,
-                    isMe: res.data.isMe,
-                    senderId: res.data.senderId,
-                    receiverId: res.data.receiverId,
-                    photoId: res.data.photoId,
-                    photo: url ? url : '',
-                    content: res.data.content,
-                    createdAt: formatDate(res.data.createdAt, 2),
-                });
-                sendContent.value = '';
-                useChatStore().setNewMessageId(res.data.id)
-                setScrollTop()
-
-            } else {
-                ElMessage.error(res.message)
-            }
-        } else {
-            ElMessage.error("请选中列表聊天再发送消息")
-        }
-    }
-}
-
 // 流式响应
-const responseStream = () => {
+const sendMessage = async () => {
     const token = localStorage.getItem('Authorization')
     if (token === '' || token === null || token === undefined) {
         useAuthStore().setLoginDialog(true)
         return
     }
+    if (sendContent.value.trim() === '') {
+        ElMessage.error('请选中左侧聊天再发消息')
+        return
+    }
     const chatroomId = useChatStore().getSelectedChatroomId
-    let sender = {}
-    let receiver = {}
+    const receiverId = ref<number>(0)
 
     if (chatroomId !== 0) {
-        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream/?content='
-            + sendContent.value
-            + '&chatroomId=' + chatroomId
+
+        const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
+        if (res.code !== 200) {
+            ElMessage.error(res.message)
+            return
+        }
+
+        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream/?chatroomId='
+            + chatroomId
             + '&token=' + token
         );
 
         eventSource.addEventListener('message', function (event) {
             const respomse = JSON.parse(event.data);
-            if (respomse.code === 206) {
-                const url = getAvatarUrl(respomse.data.photoId)
-                if (respomse.data.isMe) {
-                    sender = {
-                        id: respomse.data.id,
-                        isMe: respomse.data.isMe,
-                        senderId: respomse.data.senderId,
-                        receiverId: respomse.data.receiverId,
-                        photoId: respomse.data.photoId,
-                        photo: url ? url : '',
-                        content: respomse.data.content,
-                        createdAt: formatDate(respomse.data.createdAt, 2),
-                    }
-                } else {
-                    receiver = {
-                        id: respomse.data.id,
-                        isMe: respomse.data.isMe,
-                        senderId: respomse.data.senderId,
-                        receiverId: respomse.data.receiverId,
-                        photoId: respomse.data.photoId,
-                        photo: url ? url : '',
-                        content: respomse.data.content,
-                        createdAt: formatDate(respomse.data.createdAt, 2),
-                    }
-                }
-            } else {
-                // 流响应的数据
 
+            switch (respomse.code) {
+                case 100: // 流式响应
+                    streamResponse(receiverId.value, respomse)
+                    break
+                case 206: // 发送者接收者数据
+                    if (!respomse.data.isMe) {
+                        receiverId.value = respomse.data.id
+                        respomse.data.content = ''
+                    }
+                    dataPush(respomse)
+                    break
+                case 401: // 鉴权相关
+                    useAuthStore().setLoginDialog(true)
+                    ElMessage.error(respomse.message)
+                    break
+                case 500: // 错误相关
+                    ElMessage.error(respomse.message)
+                    break
+                default:
+                    ElMessage.error(respomse.message)
             }
-            sendContent.value = '';
-            useChatStore().setNewMessageId(respomse.data.id)
-            setScrollTop()
+
+            setScrollBottom()
         });
 
         eventSource.addEventListener('error', function (event) {
@@ -255,12 +272,38 @@ const responseStream = () => {
 
 }
 
+// 数据渲染
+const dataPush = (respomse: any) => {
+    const url = getAvatarUrl(respomse.data.photoId)
+    messages.data.unshift({
+        id: respomse.data.id,
+        isMe: respomse.data.isMe,
+        senderId: respomse.data.senderId,
+        receiverId: respomse.data.receiverId,
+        photoId: respomse.data.photoId,
+        photo: url ? url : '',
+        content: respomse.data.content,
+        createdAt: formatDate(respomse.data.createdAt, 2),
+    })
+
+    useChatStore().setNewMessageId(respomse.data.id)
+    sendContent.value = '';
+}
+
+// 流响应的数据
+const streamResponse = (receiverId: number, respomse: any) => {
+    const itemToUpdate = messages.data.find(item => item.id === receiverId)
+    if (itemToUpdate) {
+        itemToUpdate.content += respomse.data
+    }
+}
+
 // 计算聊天区高度
 const updateWindowSize = () => {
     chatContentHeight.value = window.innerHeight - 56;
     // 296是菜单栏和聊天列表的宽度
     chatContentWidth.value = window.innerWidth - (296 + 100)
-    setScrollTop()
+    setScrollBottom()
 };
 
 // 监听选中的聊天室
@@ -273,7 +316,7 @@ watch(() => useChatStore().getSelectedChatroomId, (newValue, oldValue) => {
     queryInfo.pageSize = 50
     queryInfo.total = 0
     list()
-    setScrollTop()
+    setScrollBottom()
     useChatStore().setScroll(true)
 })
 
@@ -301,13 +344,32 @@ const loadListData = debounce(async (enter: any) => {
 
 
 // 将滚动条设置到底部
-const setScrollTop = () => {
+const setScrollBottom = () => {
     nextTick(() => {
         setTimeout(() => {
             scrollbarRef.value!.setScrollTop(innerRef.value!.clientHeight);
-        }, 100);
+        }, 500);
     });
 }
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss">
+.line {
+    position: relative;
+}
+
+.line::before {
+    content: attr(data-line);
+    display: inline-block;
+    margin-right: 0.5em;
+    user-select: none;
+    border-right: 1px solid #abb2bf;
+    padding-right: 0.5em;
+    /* 添加右侧内边距，让白线和内容有一定的间隔 */
+    width: 30px;
+}
+
+pre code.hljs {
+    border-radius: 0.4rem;
+}
+</style>
