@@ -13,7 +13,7 @@ async function createWindow() {
         webPreferences: {
             nodeIntegration: true, // 启用Node.js集成
             contextIsolation: false, // 禁用上下文隔离
-            webSecurity: false, // 禁用web安全策略
+            webSecurity: true, // 禁用web安全策略
         },
         icon: path.join(__dirname, '/', 'favicon.ico') // 设置窗口图标
     });
@@ -31,9 +31,10 @@ async function createWindow() {
             }
         }
     ])
-
-    tray.setToolTip('Herman AI')  // 设置鼠标指针在托盘图标上悬停时显示的文本
-    tray.setContextMenu(contextMenu)  // 设置图标的内容菜单
+    // 设置鼠标指针在托盘图标上悬停时显示的文本
+    tray.setToolTip('Herman AI')
+    // 设置图标的内容菜单
+    tray.setContextMenu(contextMenu)
     // 点击托盘图标，显示主窗口
     tray.on("click", () => {
         win.show();

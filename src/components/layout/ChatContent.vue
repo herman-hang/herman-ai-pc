@@ -1,8 +1,8 @@
 <template>
     <div class="flex flex-col" :style="{ height: chatContentHeight + 'px' }">
         <!-- 内容区 -->
-        <el-scrollbar class="px-4 scroll-container" ref="scrollbarRef" @scroll="loadListData">
-            <div ref="innerRef">
+        <el-scrollbar class="px-4" ref="scrollbarRef" @scroll="loadListData">
+            <div ref="innerRef" class="scroll-container">
                 <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4"
                     ref="child">
                     <div class="flex justify-center text-xs text-gray-400">
@@ -12,7 +12,7 @@
                     <div v-if="message.isMe" class="flex justify-end items-center">
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
                             class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-2 px-2 rounded-lg break-words text-base">
-                            <div v-html="message.content"></div>
+                            <div>{{ message.content }}</div>
                         </div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
                             <el-avatar
@@ -26,12 +26,8 @@
                                 :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
-                            class="bg-gray-200 rounded-lg break-words text-base">
-
-
+                            class="bg-white rounded-lg break-words text-base">
                             <div class="flex flex-col px-3 py-3" v-html="renderMarkdown(message.content)"></div>
-
-
                         </div>
                     </div>
                 </div>
@@ -53,7 +49,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, onUnmounted, reactive, nextTick, watch, computed } from "vue"
+import { ref, onMounted, onUnmounted, reactive, nextTick, watch, computed, inject } from "vue"
 import { Promotion } from '@element-plus/icons-vue'
 import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
@@ -61,9 +57,13 @@ import { MessageList, Preview, SendMessage } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
 import { useAuthStore } from '@/stores/auth';
-import { marked } from 'marked';
+import { Marked } from 'marked';
+import { markedHighlight } from "marked-highlight";
 import hljs from 'highlight.js'
 import "highlight.js/styles/atom-one-dark.css";
+import { gfmHeadingId } from "marked-gfm-heading-id";
+import { mangle } from "marked-mangle";
+import { markedSmartypants } from 'marked-smartypants';
 
 // 内容区引用
 const innerRef = ref<HTMLDivElement>()
@@ -119,6 +119,7 @@ onMounted(() => {
     updateWindowSize()
     window.addEventListener('resize', updateWindowSize);
     useChatStore().setScroll(true)
+    handleClick()
     setScrollBottom()
 });
 
@@ -127,31 +128,50 @@ onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
 
-// 代码块渲染
+// 处理electron环境点击链接跳转问题
+const handleClick = () => {
+    // 获取当前环境
+    const isElectron = inject('isElectron');
+    if (isElectron) {
+        const { shell } = require('electron');
+        document.addEventListener('click', (event: any) => {
+            if (event.target.tagName === 'A' && event.target.href.startsWith('http')) {
+                event.preventDefault();
+                shell.openExternal(event.target.href);
+            }
+        });
+    }
+}
+
+// 接收消息渲染
 const renderMarkdown = (value: string) => {
+    const marked = new Marked(
+        markedHighlight({
+            langPrefix: 'hljs language-',
+            highlight(code, lang) {
+                const validLanguage = hljs.getLanguage(lang) ? lang : 'plaintext';
+                const highlightedCode = hljs.highlight(validLanguage, code).value;
+                const lines = highlightedCode.split('\n').map((line, index) => {
+                    return `<span class="line" data-line="${index + 1}">${line}</span>`;
+                });
+                return `${lines.join('\n')}`;
+            },
+        }),
+    );
     marked.setOptions({
-        renderer: new marked.Renderer(),
-        highlight: function (code: any, language: any) {
-            const validLanguage = hljs.getLanguage(language) ? language : 'plaintext';
-            const highlightedCode = hljs.highlight(validLanguage, code).value;
-            const lines = highlightedCode.split('\n').map((line, index) => {
-                return `<span class="line" data-line="${index + 1}">${line}</span>`;
-            });
-
-            return `${lines.join('\n')}`;
-        },
-        gfm: true, //默认为true。 允许 Git Hub标准的markdown.
-        breaks: true, //默认为false。 允许回车换行。该选项要求 gfm 为true。
-        pedantic: false, //默认为false。 尽可能地兼容 markdown.pl的晦涩部分。不纠正原始模型任何的不良行为和错误。
+        gfm: true,
+        pedantic: false,
+        sanitize: false,
         smartLists: true,
-        smartypants: true, //使用更为时髦的标点，比如在引用语法中加入破折号。
-        langPrefix: "hljs language-"
     });
+    marked.use(gfmHeadingId({
+        prefix: "herman-ai-code-",
+    }), mangle());
 
+    marked.use({ extensions: [markedSmartypants] });
 
     return marked.parse(value);
 };
-
 
 // 向头像数组中添加新的项
 const addAvatarItem = (id: number, url: string) => {
@@ -232,7 +252,7 @@ const sendMessage = async () => {
             return
         }
 
-        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream/?chatroomId='
+        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream?chatroomId='
             + chatroomId
             + '&token=' + token
         );
@@ -354,8 +374,13 @@ const setScrollBottom = () => {
 </script>
 
 <style lang="scss">
+.scroll-container {
+    overflow-x: hidden;
+}
+
 .line {
     position: relative;
+    overflow-x: auto;
 }
 
 .line::before {

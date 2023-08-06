@@ -62,7 +62,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch } from "vue"
+import { onMounted, ref, watch, inject } from "vue"
 import { useChatStore } from '@/stores/chat';
 // 是否窗口最大化
 const isMax = ref<boolean>(false)
@@ -70,9 +70,9 @@ const isMax = ref<boolean>(false)
 const name = ref('')
 // electron主进程ipcRenderer对象
 let ipcRenderer: any = null
-// 是否electron环境
-const isElectron = navigator.userAgent.toLowerCase().indexOf('electron/') > -1;
 
+// 获取当前环境
+const isElectron = inject('isElectron');
 // 在 Electron 环境中加载
 if (isElectron) {
     const electron = require('electron')

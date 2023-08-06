@@ -22,6 +22,10 @@
     "element-plus": "^2.3.8",
     "highlight.js": "^11.8.0",
     "marked": "^6.0.0",
+    "marked-gfm-heading-id": "^3.0.5",
+    "marked-highlight": "^2.0.2",
+    "marked-mangle": "^1.1.1",
+    "marked-smartypants": "^1.0.3",
     "pinia": "^2.1.6",
     "vue": "^3.3.4",
     "vue-router": "^4.2.2"

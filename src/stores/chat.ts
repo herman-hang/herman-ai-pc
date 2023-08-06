@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 
+// 对聊天相关监听
 export const useChatStore = defineStore({
     id: 'chat',
     state: () => ({
-        selectedChatroomId: 0,
-        selectedChatroomName: '',
-        scroll: false,
-        newMessageId: 0,
+        selectedChatroomId: 0, // 聊天列表选中的对话
+        selectedChatroomName: '', // 选中聊天对话名称
+        scroll: false, // 聊天内容控制滚动条滑到底部
+        newMessageId: 0, // 发送新消息
     }),
     actions: {
         setSelectChatroomId(selectedChatroomId: number) {
