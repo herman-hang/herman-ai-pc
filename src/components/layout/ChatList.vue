@@ -388,6 +388,7 @@ const addConfirm = (formEl: FormInstance | undefined) => {
             if (res.code === 200) {
                 list()
                 isAdd.value = false
+                useChatStore().setSelectChatroomId(res.data.id)
                 ElMessage.success(res.message)
             } else {
                 ElMessage.error(res.message)
@@ -462,6 +463,7 @@ const loadListData = async () => {
     text-overflow: ellipsis;
     width: 170px;
 }
+
 .text-overflow-name {
     white-space: nowrap;
     overflow: hidden;

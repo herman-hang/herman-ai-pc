@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite --mode development",
-    "test": "vite --mode test",
+    "dev": "vite --mode development --host 0.0.0.0",
+    "test": "vite --mode test --host 0.0.0.0",
     "build": "run-p type-check build-only",
     "preview": "vite preview",
     "build-only": "vite build",
@@ -20,6 +20,7 @@
     "crypto-js": "^4.1.1",
     "dayjs": "^1.11.9",
     "element-plus": "^2.3.8",
+    "github-markdown-css": "^5.2.0",
     "highlight.js": "^11.8.0",
     "marked": "^6.0.0",
     "marked-gfm-heading-id": "^3.0.5",

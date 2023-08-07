@@ -26,8 +26,8 @@
                                 :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
-                            class="bg-white rounded-lg break-words text-base">
-                            <div class="flex flex-col px-3 py-3" v-html="renderMarkdown(message.content)"></div>
+                            class="bg-white rounded-lg break-words text-base flex flex-col px-3 py-3">
+                            <div class="markdown-body" v-html="renderMarkdown(message.content)"></div>
                         </div>
                     </div>
                 </div>
@@ -40,7 +40,7 @@
         <!-- 发送内容输入框 -->
         <div class="flex m-2 justify-center items-center">
             <el-input resize="none" :autosize="{ minRows: 2, maxRows: 6 }" v-model="sendContent" type="textarea"
-                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter="handleKeyDown" />
+                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter="handleKeyDown" ref="sendRef" />
             <div class="px-1">
                 <el-button color="#626aef" :icon="Promotion" circle @click="sendMessage" />
             </div>
@@ -58,13 +58,14 @@ import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
 import { useAuthStore } from '@/stores/auth';
 import { Marked } from 'marked';
+import "github-markdown-css"
 import { markedHighlight } from "marked-highlight";
 import hljs from 'highlight.js'
 import "highlight.js/styles/atom-one-dark.css";
 import { gfmHeadingId } from "marked-gfm-heading-id";
 import { mangle } from "marked-mangle";
-import { markedSmartypants } from 'marked-smartypants';
-
+// 消息发送输入框引用
+const sendRef = ref()
 // 内容区引用
 const innerRef = ref<HTMLDivElement>()
 // 滚动条引用
@@ -167,8 +168,6 @@ const renderMarkdown = (value: string) => {
     marked.use(gfmHeadingId({
         prefix: "herman-ai-code-",
     }), mangle());
-
-    marked.use({ extensions: [markedSmartypants] });
 
     return marked.parse(value);
 };
@@ -337,6 +336,7 @@ watch(() => useChatStore().getSelectedChatroomId, (newValue, oldValue) => {
     queryInfo.total = 0
     list()
     setScrollBottom()
+    sendRef.value.focus()
     useChatStore().setScroll(true)
 })
 
@@ -389,12 +389,10 @@ const setScrollBottom = () => {
     margin-right: 0.5em;
     user-select: none;
     border-right: 1px solid #abb2bf;
-    padding-right: 0.5em;
     /* 添加右侧内边距，让白线和内容有一定的间隔 */
     width: 30px;
 }
-
-pre code.hljs {
-    border-radius: 0.4rem;
+pre code.hljs{
+    padding:0px
 }
 </style>
