@@ -389,6 +389,7 @@ const addConfirm = (formEl: FormInstance | undefined) => {
                 list()
                 isAdd.value = false
                 useChatStore().setSelectChatroomId(res.data.id)
+                useChatStore().setSelectChatroomName(res.data.name)
                 ElMessage.success(res.message)
             } else {
                 ElMessage.error(res.message)

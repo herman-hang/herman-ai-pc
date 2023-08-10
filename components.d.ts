@@ -25,6 +25,8 @@ declare module 'vue' {
     IEpDocument: typeof import('~icons/ep/document')['default']
     IEpInfoFilled: typeof import('~icons/ep/info-filled')['default']
     IEpMic: typeof import('~icons/ep/mic')['default']
+    IEpMore: typeof import('~icons/ep/more')['default']
+    IEpMoreFilled: typeof import('~icons/ep/more-filled')['default']
     Menu: typeof import('./src/components/layout/Menu.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

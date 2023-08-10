@@ -54,9 +54,25 @@
             </div>
 
         </div>
-        <div class="ml-6 text-lg font-medium focus:outline-none cursor-pointer select-none">
-            <span v-if="name === ''">当前聊天名称</span>
-            <span v-else>{{ name }}</span>
+        <div class="flex items-center justify-between" style="-webkit-app-region: no-drag">
+            <!-- 聊天名称 -->
+            <div class="ml-6 text-lg font-medium focus:outline-none cursor-pointer select-none">
+                <span v-if="name === ''">当前聊天名称</span>
+                <span v-else>{{ name }}</span>
+            </div>
+
+            <!-- 搜索框 -->
+            <div>
+                <el-input v-model="keywords" @change="setKeywords" @input="setKeywords" @clear="setKeywords" size="small"
+                    placeholder="搜索内容" :prefix-icon="Search" />
+            </div>
+
+            <!-- 更多 -->
+            <div class="mr-2 cursor-pointer">
+                <el-icon>
+                    <i-ep-MoreFilled />
+                </el-icon>
+            </div>
         </div>
     </div>
 </template>
@@ -64,13 +80,17 @@
 <script lang="ts" setup>
 import { onMounted, ref, watch, inject } from "vue"
 import { useChatStore } from '@/stores/chat';
+import { useContentStore } from '@/stores/content';
+import { Search } from '@element-plus/icons-vue'
+import { debounce } from 'lodash'
 // 是否窗口最大化
 const isMax = ref<boolean>(false)
 // 聊天名称
 const name = ref('')
 // electron主进程ipcRenderer对象
 let ipcRenderer: any = null
-
+// 搜索关键词
+const keywords = ref('')
 // 获取当前环境
 const isElectron = inject('isElectron');
 // 在 Electron 环境中加载
@@ -85,6 +105,12 @@ onMounted(() => {
         isMaximized()
     }
 })
+
+// 监听搜索框防抖
+const setKeywords = debounce(() => {
+    useContentStore().setKeywords(keywords.value)
+}, 300);
+
 
 // 最小化
 const minWindow = () => {
