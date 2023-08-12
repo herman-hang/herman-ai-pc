@@ -3,8 +3,8 @@
         <!-- 搜索框 -->
         <div class="flex justify-center items-center h-14 bg-white">
             <div class="flex justify-center items-center">
-                <el-input clearable v-model="queryInfo.keywords" size="small" :prefix-icon="Search" placeholder="搜索"
-                    @change="list" @input="handleInput" @clear="list" />
+                <el-input v-model="queryInfo.keywords" size="small" :prefix-icon="Search" placeholder="搜索"
+                    @change="list" @input="handleInput"/>
                 <div class="text-gray-400 hover:text-gray-500" @click="addAction">
                     <el-icon class="m-2" size="18">
                         <i-ep-CirclePlus />
@@ -350,7 +350,6 @@ const list = async () => {
         return
     }
 
-    initQueryInfo()
     const { data: res } = await ChatroomList(queryInfo)
     if (res.code === 200) {
         queryInfo.page = res.data.page;

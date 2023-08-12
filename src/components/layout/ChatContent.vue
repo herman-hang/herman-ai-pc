@@ -3,8 +3,7 @@
         <!-- 内容区 -->
         <el-scrollbar class="px-4" ref="scrollbarRef" @scroll="loadListData">
             <div ref="innerRef" class="scroll-container">
-                <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4"
-                    ref="child">
+                <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4">
                     <div class="flex justify-center text-xs text-gray-400">
                         {{ message.createdAt }}
                     </div>
@@ -12,7 +11,7 @@
                     <div v-if="message.isMe" class="flex justify-end items-center">
                         <div :style="{ maxWidth: chatContentWidth + 'px' }"
                             class="bg-gradient-to-r from-blue-400 to-indigo-400 text-white text-left py-2 px-2 rounded-lg break-words text-base">
-                            <div>{{ message.content }}</div>
+                            <pre style="white-space: pre-wrap; word-wrap: break-word;">{{ message.content }}</pre>
                         </div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
                             <el-avatar
@@ -53,6 +52,8 @@ import { ref, onMounted, onUnmounted, reactive, nextTick, watch, computed, injec
 import { Promotion } from '@element-plus/icons-vue'
 import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
+import { useAiStore } from '@/stores/ai'
+import { useContentStore } from '@/stores/content';
 import { MessageList, Preview, SendMessage } from '@/api/home'
 import { formatDate } from '@/uitls/formatDate'
 import { debounce } from 'lodash'
@@ -96,9 +97,13 @@ const queryInfo = reactive({
     // 总页数
     pageNum: 0,
     // 每页显示多少条数据
-    pageSize: 25,
+    pageSize: 50,
     // 聊天室ID
-    chatroomId: useChatStore().getSelectedChatroomId
+    chatroomId: useChatStore().getSelectedChatroomId,
+    // 搜索关键词
+    keywords: '',
+    // 消息ID
+    messageId: 0
 })
 // 消息内容列表
 const messages = reactive<{ data: Message[] }>({ data: [] });
@@ -155,6 +160,7 @@ const renderMarkdown = (value: string) => {
                 const lines = highlightedCode.split('\n').map((line, index) => {
                     return `<span class="line" data-line="${index + 1}">${line}</span>`;
                 });
+
                 return `${lines.join('\n')}`;
             },
         }),
@@ -232,62 +238,62 @@ const list = async () => {
 // 流式响应
 const sendMessage = async () => {
     const token = localStorage.getItem('Authorization')
+    const chatroomId = useChatStore().getSelectedChatroomId
+    const receiverId = ref<number>(0)
     if (token === '' || token === null || token === undefined) {
         useAuthStore().setLoginDialog(true)
         return
     }
     if (sendContent.value.trim() === '') {
-        ElMessage.error('请选中左侧聊天再发消息')
         return
     }
-    const chatroomId = useChatStore().getSelectedChatroomId
-    const receiverId = ref<number>(0)
+    if (chatroomId == 0) {
+        ElMessage.error('请选中左侧聊天再发消息')
+        return
+    };
 
-    if (chatroomId !== 0) {
+    const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
+    if (res.code !== 200) {
+        ElMessage.error(res.message)
+        return
+    }
 
-        const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
-        if (res.code !== 200) {
-            ElMessage.error(res.message)
-            return
+    const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream?chatroomId='
+        + chatroomId
+        + '&token=' + token
+    );
+
+    eventSource.addEventListener('message', function (event) {
+        const respomse = JSON.parse(event.data);
+
+        switch (respomse.code) {
+            case 100: // 流式响应
+                streamResponse(receiverId.value, respomse)
+                break
+            case 206: // 发送者接收者数据
+                if (!respomse.data.isMe) {
+                    receiverId.value = respomse.data.id
+                    respomse.data.content = ''
+                }
+                dataPush(respomse)
+                break
+            case 401: // 鉴权相关
+                useAuthStore().setLoginDialog(true)
+                ElMessage.error(respomse.message)
+                break
+            case 500: // 错误相关
+                ElMessage.error(respomse.message)
+                break
+            default:
+                ElMessage.error(respomse.message)
         }
 
-        const eventSource = new EventSource(import.meta.env.VITE_BASE_URL + 'pc/chat/gpt/stream?chatroomId='
-            + chatroomId
-            + '&token=' + token
-        );
+        setScrollBottom()
+    });
 
-        eventSource.addEventListener('message', function (event) {
-            const respomse = JSON.parse(event.data);
-
-            switch (respomse.code) {
-                case 100: // 流式响应
-                    streamResponse(receiverId.value, respomse)
-                    break
-                case 206: // 发送者接收者数据
-                    if (!respomse.data.isMe) {
-                        receiverId.value = respomse.data.id
-                        respomse.data.content = ''
-                    }
-                    dataPush(respomse)
-                    break
-                case 401: // 鉴权相关
-                    useAuthStore().setLoginDialog(true)
-                    ElMessage.error(respomse.message)
-                    break
-                case 500: // 错误相关
-                    ElMessage.error(respomse.message)
-                    break
-                default:
-                    ElMessage.error(respomse.message)
-            }
-
-            setScrollBottom()
-        });
-
-        eventSource.addEventListener('error', function (event) {
-            eventSource.close()
-        });
-    }
+    eventSource.addEventListener('error', function (event) {
+        eventSource.close()
+    });
 
 }
 
@@ -334,10 +340,48 @@ watch(() => useChatStore().getSelectedChatroomId, (newValue, oldValue) => {
     queryInfo.pageNum = 0
     queryInfo.pageSize = 50
     queryInfo.total = 0
+    queryInfo.messageId = 0
     list()
     setScrollBottom()
     sendRef.value.focus()
     useChatStore().setScroll(true)
+    useContentStore().setMessageId(0)
+})
+
+// 监听搜索消息ID
+watch(() => useContentStore().getMessageId, (newValue, oldValue) => {
+    if (newValue !== 0) {
+        queryInfo.messageId = newValue
+        queryInfo.keywords = ''
+        list()
+        const targetMessageRef: any = scrollbarRef.value?.$el.querySelector(`[data-id="${newValue}"]`);
+        if (targetMessageRef && innerRef.value) {
+            const targetOffsetTop = targetMessageRef.offsetTop;
+            const containerOffsetTop = innerRef.value.offsetTop;
+            const scrollOffset = targetOffsetTop - containerOffsetTop;
+            nextTick(() => {
+                setTimeout(() => {
+                    scrollbarRef.value?.scrollTo({
+                        el: innerRef.value,
+                        to: scrollOffset,
+                    });
+                }, 500);
+            });
+        }
+    }
+})
+
+// 监听搜索内容
+watch(() => useContentStore().getKeywords, (newValue, oldValue) => {
+    if (newValue == '') {
+        setScrollBottom()
+    }
+})
+
+// 监听AI类型切换状态
+watch(() => useAiStore().getAiType, (newValue, oldValue) => {
+    queryInfo.keywords = ''
+    queryInfo.messageId = 0
 })
 
 // 监听滚动条是否滚到顶部
@@ -388,11 +432,18 @@ const setScrollBottom = () => {
     display: inline-block;
     margin-right: 0.5em;
     user-select: none;
-    border-right: 1px solid #abb2bf;
+    border-right: 1px solid #c5c5c5;
     /* 添加右侧内边距，让白线和内容有一定的间隔 */
-    width: 30px;
+    width: 24px;
+    padding-right: 0.5em;
+    text-align: right;
 }
-pre code.hljs{
-    padding:0px
+
+.markdown-body pre {
+    padding: 6px
+}
+
+pre code.hljs {
+    padding: 0px
 }
 </style>

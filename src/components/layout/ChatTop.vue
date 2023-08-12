@@ -63,8 +63,15 @@
 
             <!-- 搜索框 -->
             <div>
-                <el-input v-model="keywords" @change="setKeywords" @input="setKeywords" @clear="setKeywords" size="small"
-                    placeholder="搜索内容" :prefix-icon="Search" />
+                <el-autocomplete v-model="queryInfo.keywords" placeholder="搜索内容" :prefix-icon="Search" size="small"
+                    :fetch-suggestions="querySearchAsync" :trigger-on-focus="false" @select="handleSelect"
+                    placement="bottom" @blur="handleBlur" @keyup.enter="handleBlur">
+                    <template #default="{ item }">
+                        <div class="w-96">
+                            <span :title="item.content" v-html="filterTitle(item.content)"></span>
+                        </div>
+                    </template>
+                </el-autocomplete>
             </div>
 
             <!-- 更多 -->
@@ -78,19 +85,45 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref, watch, inject } from "vue"
+import { onMounted, ref, watch, inject, reactive } from "vue"
 import { useChatStore } from '@/stores/chat';
 import { useContentStore } from '@/stores/content';
 import { Search } from '@element-plus/icons-vue'
-import { debounce } from 'lodash'
+import { MessageList } from '@/api/home'
+import { useAiStore } from '@/stores/ai'
 // 是否窗口最大化
 const isMax = ref<boolean>(false)
 // 聊天名称
 const name = ref('')
 // electron主进程ipcRenderer对象
 let ipcRenderer: any = null
-// 搜索关键词
-const keywords = ref('')
+
+// 消息列表对象
+const queryInfo = reactive({
+    // 当前页码
+    page: 1,
+    // 总条数
+    total: 0,
+    // 总页数
+    pageNum: 0,
+    // 每页显示多少条数据
+    pageSize: 50,
+    // 聊天室ID
+    chatroomId: useChatStore().getSelectedChatroomId,
+    // 搜索关键词
+    keywords: ''
+})
+// 定义messages的类型
+interface Message {
+    id: number; // 消息ID
+    isMe: boolean; // 是否是我
+    senderId: number, // 发送者ID
+    receiverId: number; // 接收者
+    photoId: number, // 头像ID
+    content: string; // 消息内容
+    createdAt: string // 发送时间
+};
+
 // 获取当前环境
 const isElectron = inject('isElectron');
 // 在 Electron 环境中加载
@@ -99,6 +132,7 @@ if (isElectron) {
     ipcRenderer = electron.ipcRenderer
 }
 
+
 // 组件完成渲染时调用
 onMounted(() => {
     if (isElectron) {
@@ -106,11 +140,81 @@ onMounted(() => {
     }
 })
 
-// 监听搜索框防抖
-const setKeywords = debounce(() => {
-    useContentStore().setKeywords(keywords.value)
-}, 300);
+// 搜索
+const querySearchAsync = async (queryString: string, cb: (arg: any) => void) => {
+    queryInfo.keywords = queryString
+    queryInfo.chatroomId = useChatStore().getSelectedChatroomId
+    const { data: res } = await MessageList(queryInfo)
+    if (res.code === 200) {
+        queryInfo.page = res.data.page;
+        queryInfo.total = res.data.total;
+        queryInfo.pageNum = res.data.pageNum;
+        queryInfo.pageSize = res.data.pageSize;
+        if (Array.isArray(res.data.list) && res.data.list.length > 0) {
+            cb(res.data.list)
+        } else {
+            cb([])
+        }
+    } else {
+        cb([])
+    }
+}
 
+// 搜索列表点击选中建议项时触发
+const handleSelect = (item: Message) => {
+    useContentStore().setMessageId(item.id)
+    useContentStore().setKeywords(item.content)
+    queryInfo.keywords = item.content
+}
+
+// 监听失去焦点触发
+const handleBlur = () => {
+    if (queryInfo.keywords === '') {
+        useContentStore().setMessageId(0)
+    }
+    useContentStore().setKeywords(queryInfo.keywords)
+}
+
+// 给每个结果中匹配字符高亮，v-html="filterTitle(item.value)"
+const filterTitle = (originStr: string) => {
+    if (!queryInfo.keywords) {
+        return originStr;
+    }
+
+    const maxChars = 100; // 最大字符数
+    const ellipsis = '...';
+    const keywords = queryInfo.keywords;
+    const regEscape = (v: any) => v.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+
+    // 查找匹配的位置
+    const matchIndex = originStr.toLowerCase().indexOf(keywords.toLowerCase());
+
+    // 如果没有匹配，返回原始字符串
+    if (matchIndex === -1) {
+        return originStr.length > maxChars ? originStr.slice(0, maxChars) + ellipsis : originStr;
+    }
+
+    // 获取匹配周围的文本
+    const startIndex = Math.max(matchIndex - maxChars / 2, 0);
+    const endIndex = Math.min(matchIndex + keywords.length + maxChars / 2, originStr.length);
+    const matchedText = originStr.slice(startIndex, endIndex);
+
+    // 替换匹配部分为高亮
+    let highlightedText = matchedText.replace(
+        new RegExp(regEscape(keywords), "ig"),
+        '<span style="color: #2cc0da">$&</span>'
+    );
+
+    // 添加省略号
+    if (startIndex > 0) {
+        highlightedText = ellipsis + highlightedText.slice(keywords.length);
+    }
+    if (endIndex < originStr.length) {
+        highlightedText = highlightedText.slice(0, -keywords.length) + ellipsis;
+    }
+
+    return highlightedText;
+};
 
 // 最小化
 const minWindow = () => {
@@ -152,7 +256,43 @@ const isMaximized = () => {
 // 监听聊天室名称
 watch(() => useChatStore().getSelectedChatroomName, (newValue, oldValue) => {
     name.value = newValue
+    queryInfo.keywords = ''
+})
+
+// 监听AI类型切换状态
+watch(() => useAiStore().getAiType, (newValue, oldValue) => {
+    queryInfo.keywords = ''
 })
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.search-results {
+    position: absolute;
+    top: 100%;
+    /* 悬浮在搜索框下方 */
+    left: 0;
+    width: 100%;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.search-result-item {
+    padding: 8px;
+    border-bottom: 1px solid #ccc;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item button {
+    margin-left: 8px;
+    padding: 4px 8px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+</style>
