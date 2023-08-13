@@ -353,6 +353,8 @@ watch(() => useContentStore().getMessageId, (newValue, oldValue) => {
     if (newValue !== 0) {
         queryInfo.messageId = newValue
         queryInfo.keywords = ''
+        queryInfo.page = 1
+        queryInfo.pageSize = 50
         list()
         const targetMessageRef: any = scrollbarRef.value?.$el.querySelector(`[data-id="${newValue}"]`);
         if (targetMessageRef && innerRef.value) {
@@ -374,6 +376,11 @@ watch(() => useContentStore().getMessageId, (newValue, oldValue) => {
 // 监听搜索内容
 watch(() => useContentStore().getKeywords, (newValue, oldValue) => {
     if (newValue == '') {
+        queryInfo.messageId = 0
+        queryInfo.keywords = ''
+        queryInfo.page = 1
+        queryInfo.pageSize = 50
+        list()
         setScrollBottom()
     }
 })
