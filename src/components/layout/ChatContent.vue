@@ -3,7 +3,8 @@
         <!-- 内容区 -->
         <el-scrollbar class="px-4" ref="scrollbarRef" @scroll="loadListData">
             <div ref="innerRef" class="scroll-container">
-                <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4">
+                <div v-if="reversedMessages.length > 0" v-for="message in reversedMessages" :key="message.id" class="mb-4"
+                    :ref="saveRef(message.id)">
                     <div class="flex justify-center text-xs text-gray-400">
                         {{ message.createdAt }}
                     </div>
@@ -15,7 +16,7 @@
                         </div>
                         <div class="w-10 h-10 ml-1 justify-center items-center">
                             <el-avatar
-                                :src="message.photoId === 0 ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
+                                :src="message.photo === '' ? 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png' : message.photo" />
                         </div>
                     </div>
                     <!-- 接收内容 -->
@@ -31,7 +32,7 @@
                     </div>
                 </div>
                 <div v-else class="flex justify-center items-center mt-2">
-                    <span class="text-gray-400 font-medium text-sm">无数据~</span>
+                    <el-empty class="text-gray-400 font-medium text-sm" description="无数据~" />
                 </div>
             </div>
         </el-scrollbar>
@@ -39,9 +40,9 @@
         <!-- 发送内容输入框 -->
         <div class="flex m-2 justify-center items-center">
             <el-input resize="none" :autosize="{ minRows: 2, maxRows: 6 }" v-model="sendContent" type="textarea"
-                placeholder="请教一个问题~" @keydown.enter.shift="sendWithNewLine" @keydown.enter="handleKeyDown" ref="sendRef" />
+                placeholder="请教一个问题~" @keydown.enter="handleKeyDown" ref="sendRef" />
             <div class="px-1">
-                <el-button color="#626aef" :icon="Promotion" circle @click="sendMessage" />
+                <el-button color="#626aef" :loading="isSend" :icon="Promotion" circle @click="sendMessage" />
             </div>
         </div>
     </div>
@@ -65,6 +66,10 @@ import hljs from 'highlight.js'
 import "highlight.js/styles/atom-one-dark.css";
 import { gfmHeadingId } from "marked-gfm-heading-id";
 import { mangle } from "marked-mangle";
+// 发送消息标志位
+const isSend = ref<boolean>(false)
+// 存储item引用
+const childRefs = reactive<any>({});
 // 消息发送输入框引用
 const sendRef = ref()
 // 内容区引用
@@ -107,14 +112,9 @@ const queryInfo = reactive({
 })
 // 消息内容列表
 const messages = reactive<{ data: Message[] }>({ data: [] });
-// 头像数组类型定义
-type Avatar = {
-    id: number,
-    url: string
-}
-// 定义响应式的头像数组对象
-const avatarArray = reactive<Avatar[]>([]);
 
+// 定义响应式的头像数组对象
+const avatarArray: string[] = [];
 // 修改原数组
 const reversedMessages = computed(() =>
     messages.data.slice().reverse()
@@ -133,6 +133,13 @@ onMounted(() => {
 onUnmounted(() => {
     window.removeEventListener('resize', updateWindowSize);
 });
+
+// 保存item引用
+const saveRef = (id: number) => (el: any) => {
+    if (el) {
+        childRefs['child' + id] = el;
+    }
+};
 
 // 处理electron环境点击链接跳转问题
 const handleClick = () => {
@@ -156,7 +163,7 @@ const renderMarkdown = (value: string) => {
             langPrefix: 'hljs language-',
             highlight(code, lang) {
                 const validLanguage = hljs.getLanguage(lang) ? lang : 'plaintext';
-                const highlightedCode = hljs.highlight(validLanguage, code).value;
+                const highlightedCode = hljs.highlight(code, { language: validLanguage, ignoreIllegals: true }).value;
                 const lines = highlightedCode.split('\n').map((line, index) => {
                     return `<span class="line" data-line="${index + 1}">${line}</span>`;
                 });
@@ -178,30 +185,20 @@ const renderMarkdown = (value: string) => {
     return marked.parse(value);
 };
 
-// 向头像数组中添加新的项
-const addAvatarItem = (id: number, url: string) => {
-    avatarArray.push({ id: id, url: url });
-};
-
 // 根据ID获取头像URL
-const getAvatarUrl = (id: number) => {
-    const avatar = avatarArray.find(item => item.id === id);
-    if (avatar?.url !== '') {
-        return avatar?.url
+const getAvatarUrl = async (id: number) => {
+    if (avatarArray[id] !== '' && avatarArray[id] !== null && avatarArray[id] !== undefined) {
+        return avatarArray[id];
     } else {
-        Preview(id).then(resp => {
-            const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
-            const imageUrl = URL.createObjectURL(blob);
-            addAvatarItem(id, imageUrl)
-        })
+        const resp = await Preview(id);
+        const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+        const imageUrl = URL.createObjectURL(blob);
+        if (imageUrl !== '' && imageUrl !== null && imageUrl !== undefined) {
+            avatarArray[id] = imageUrl
+            return imageUrl;
+        }
     }
-    return avatar ? avatar.url : '';
 };
-
-// 换行操作
-const sendWithNewLine = () => {
-    sendContent.value += '\n'
-}
 
 // 键盘回车按键触发事件
 const handleKeyDown = (event: any) => {
@@ -221,16 +218,36 @@ const list = async () => {
         queryInfo.pageNum = res.data.pageNum;
         queryInfo.pageSize = res.data.pageSize;
         if (Array.isArray(res.data.list) && res.data.list.length > 0) {
-            res.data.list.forEach((item: Message) => {
+            const avatarPromises = res.data.list.map((item: Message) => {
                 if (item.photoId !== 0) {
-                    const url = getAvatarUrl(item.photoId)
-                    item.photo = url ? url : ''
+                    if (avatarArray[item.photoId] !== '' && avatarArray[item.photoId] !== null && avatarArray[item.photoId] !== undefined) {
+                        return Promise.resolve({ id: item.photoId, url: avatarArray[item.photoId] });
+                    }
+                    return Preview(item.photoId).then(resp => {
+                        const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+                        const imageUrl = URL.createObjectURL(blob);
+                        if (imageUrl !== '' && imageUrl !== null && imageUrl !== undefined) {
+                            avatarArray[item.photoId] = imageUrl
+                            return { id: item.photoId, url: imageUrl };
+                        }
+                        return null;
+                    })
                 }
-                item.createdAt = formatDate(item.createdAt, 2)
+                return null;
             });
+
+            const avatarArrays = await Promise.all(avatarPromises);
+
+            res.data.list.forEach((item: Message, index: number) => {
+                if (avatarArrays[index]) {
+                    item.photo = avatarArrays[index].url ? avatarArrays[index].url : '';
+                }
+                item.createdAt = formatDate(item.createdAt, 2);
+            });
+
             messages.data = res.data.list;
         } else {
-            messages.data = []
+            messages.data = [];
         }
     }
 }
@@ -251,7 +268,6 @@ const sendMessage = async () => {
         ElMessage.error('请选中左侧聊天再发消息')
         return
     };
-
     const { data: res } = await SendMessage({ chatroomId: chatroomId, content: sendContent.value })
     if (res.code !== 200) {
         ElMessage.error(res.message)
@@ -262,6 +278,10 @@ const sendMessage = async () => {
         + chatroomId
         + '&token=' + token
     );
+
+    eventSource.addEventListener('open', function (event) {
+        isSend.value = true
+    });
 
     eventSource.addEventListener('message', function (event) {
         const respomse = JSON.parse(event.data);
@@ -293,20 +313,28 @@ const sendMessage = async () => {
 
     eventSource.addEventListener('error', function (event) {
         eventSource.close()
+        isSend.value = false
     });
 
+    eventSource.addEventListener('close', function (event) {
+        eventSource.close()
+        isSend.value = false
+    });
 }
 
 // 数据渲染
-const dataPush = (respomse: any) => {
-    const url = getAvatarUrl(respomse.data.photoId)
+const dataPush = async (respomse: any) => {
+    let photo
+    if (respomse.data.photoId !== 0) {
+        photo = await getAvatarUrl(respomse.data.photoId)
+    }
     messages.data.unshift({
         id: respomse.data.id,
         isMe: respomse.data.isMe,
         senderId: respomse.data.senderId,
         receiverId: respomse.data.receiverId,
         photoId: respomse.data.photoId,
-        photo: url ? url : '',
+        photo: photo ? photo : '',
         content: respomse.data.content,
         createdAt: formatDate(respomse.data.createdAt, 2),
     })
@@ -320,6 +348,9 @@ const streamResponse = (receiverId: number, respomse: any) => {
     const itemToUpdate = messages.data.find(item => item.id === receiverId)
     if (itemToUpdate) {
         itemToUpdate.content += respomse.data
+        if (itemToUpdate.content.includes('END_OF_MESSAGE')) {
+            isSend.value = false
+        }
     }
 }
 
@@ -356,20 +387,19 @@ watch(() => useContentStore().getMessageId, (newValue, oldValue) => {
         queryInfo.page = 1
         queryInfo.pageSize = 50
         list()
-        const targetMessageRef: any = scrollbarRef.value?.$el.querySelector(`[data-id="${newValue}"]`);
-        if (targetMessageRef && innerRef.value) {
-            const targetOffsetTop = targetMessageRef.offsetTop;
-            const containerOffsetTop = innerRef.value.offsetTop;
-            const scrollOffset = targetOffsetTop - containerOffsetTop;
-            nextTick(() => {
-                setTimeout(() => {
-                    scrollbarRef.value?.scrollTo({
-                        el: innerRef.value,
-                        to: scrollOffset,
-                    });
-                }, 500);
-            });
-        }
+        nextTick(() => {
+            setTimeout(() => {
+                const childRefName = 'child' + newValue
+                const targetMessageRef = childRefs[childRefName];
+                if (targetMessageRef && innerRef.value) {
+                    const targetOffsetTop = targetMessageRef.offsetTop;
+                    const containerOffsetTop = innerRef.value.offsetTop;
+                    const scrollOffset = targetOffsetTop - containerOffsetTop;
+                    scrollbarRef.value?.scrollTo(scrollOffset);
+                }
+            }, 500);
+        });
+
     }
 })
 
@@ -400,14 +430,30 @@ const loadListData = debounce(async (enter: any) => {
         const { data: res } = await MessageList(queryInfo)
         if (res.code === 200) {
             if (Array.isArray(res.data.list) && res.data.list.length > 0) {
-                res.data.list.forEach((item: Message) => {
+                const avatarPromises = res.data.list.map((item: Message) => {
                     if (item.photoId !== 0) {
-                        const url = getAvatarUrl(item.photoId)
-                        item.photo = url ? url : ''
+                        return Preview(item.photoId).then(resp => {
+                            const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
+                            const imageUrl = URL.createObjectURL(blob);
+                            if (imageUrl !== '' && imageUrl !== null && imageUrl !== undefined) {
+                                return { id: item.photoId, url: imageUrl };
+                            }
+                            return null;
+                        })
                     }
-                    item.createdAt = formatDate(item.createdAt, 2)
+                    return null;
                 });
-                messages.data = messages.data.concat(res.data.list)
+
+                const avatarArray = await Promise.all(avatarPromises);
+
+                res.data.list.forEach((item: Message, index: number) => {
+                    if (avatarArray[index]) {
+                        item.photo = avatarArray[index].url ? avatarArray[index].url : '';
+                    }
+                    item.createdAt = formatDate(item.createdAt, 2);
+                });
+
+                messages.data = messages.data.concat(res.data.list);
             }
         }
     }

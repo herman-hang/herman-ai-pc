@@ -65,7 +65,7 @@
             <div>
                 <el-autocomplete v-model="queryInfo.keywords" placeholder="搜索内容" :prefix-icon="Search" size="small"
                     :fetch-suggestions="querySearchAsync" :trigger-on-focus="false" @select="handleSelect"
-                    placement="bottom" @blur="handleBlur" @keyup.enter="handleBlur">
+                    placement="bottom" @blur="handleBlur" @keyup.enter="handleBlur" hide-loading>
                     <template #default="{ item }">
                         <div class="w-96">
                             <span :title="item.content" v-html="filterTitle(item.content)"></span>
