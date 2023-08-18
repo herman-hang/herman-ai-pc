@@ -101,6 +101,7 @@ import { UserInfo, Preview, ModifyUser } from '@/api/home'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth';
 import { useAiStore } from '@/stores/ai'
+import { useUserStore } from '@/stores/user'
 
 const isUserInfoDialog = ref(false)
 const photo = ref('')
@@ -146,6 +147,13 @@ const previewImage = (photoId: number) => {
         const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
         const imageUrl = URL.createObjectURL(blob);
         photo.value = imageUrl
+        useUserStore().setUser({
+            id: userInfo.id,
+            phone: userInfo.phone,
+            nickname: userInfo.nickname,
+            photoId:userInfo.photoId,
+            photo: photo.value
+        })
     })
 }
 

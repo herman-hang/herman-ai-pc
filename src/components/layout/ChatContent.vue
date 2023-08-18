@@ -53,6 +53,7 @@ import { ref, onMounted, onUnmounted, reactive, nextTick, watch, computed, injec
 import { Promotion } from '@element-plus/icons-vue'
 import { ElScrollbar as ElScrollbarType, ElMessage } from 'element-plus';
 import { useChatStore } from '@/stores/chat';
+import { useUserStore } from '@/stores/user'
 import { useAiStore } from '@/stores/ai'
 import { useContentStore } from '@/stores/content';
 import { MessageList, Preview, SendMessage } from '@/api/home'
@@ -222,6 +223,10 @@ const list = async () => {
                 if (item.photoId !== 0) {
                     if (avatarArray[item.photoId] !== '' && avatarArray[item.photoId] !== null && avatarArray[item.photoId] !== undefined) {
                         return Promise.resolve({ id: item.photoId, url: avatarArray[item.photoId] });
+                    }
+                    if (item.isMe) {
+                        const user = useUserStore().getUser
+                        return Promise.resolve({ id: user.photoId, url: user.photo });
                     }
                     return Preview(item.photoId).then(resp => {
                         const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
@@ -432,6 +437,13 @@ const loadListData = debounce(async (enter: any) => {
             if (Array.isArray(res.data.list) && res.data.list.length > 0) {
                 const avatarPromises = res.data.list.map((item: Message) => {
                     if (item.photoId !== 0) {
+                        if (avatarArray[item.photoId] !== '' && avatarArray[item.photoId] !== null && avatarArray[item.photoId] !== undefined) {
+                            return Promise.resolve({ id: item.photoId, url: avatarArray[item.photoId] });
+                        }
+                        if (item.isMe) {
+                            const user = useUserStore().getUser
+                            return Promise.resolve({ id: user.photoId, url: user.photo });
+                        }
                         return Preview(item.photoId).then(resp => {
                             const blob = new Blob([resp.data], { type: resp.headers['content-type'] });
                             const imageUrl = URL.createObjectURL(blob);
