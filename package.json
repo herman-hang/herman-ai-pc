@@ -44,7 +44,7 @@
     "@vue/tsconfig": "^0.4.0",
     "autoprefixer": "^10.4.14",
     "electron": "^25.8.4",
-    "electron-builder": "^24.4.0",
+    "electron-builder": "^24.13.3",
     "eslint": "^8.39.0",
     "eslint-plugin-vue": "^9.11.0",
     "npm-run-all": "^4.1.5",
